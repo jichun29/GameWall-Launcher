@@ -95,11 +95,37 @@ Click-Button "▤"; Save-Window "card.png"
 # 关于窗口不再进截图：作者信息用 README 的「关于作者」表格说明就够了，
 # 截图里那点信息量还比不上表格清楚。
 
-# 「游戏工具箱」也抓一张：硬件一览 + 优化方案 + 电源方案
+# ── 「游戏工具箱」：抓两张，首页（硬件信息）+ 优化方案页 ──
+# 左栏是 ListBox，ListItem 的 Name 是类型名，得靠里面的 TextBlock 文字来认。
+function Select-Nav([IntPtr]$hwnd, [string]$label) {
+    $win = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
+    $cond = New-Object System.Windows.Automation.PropertyCondition(
+        [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+        [System.Windows.Automation.ControlType]::ListItem)
+    $items = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)
+    foreach ($item in $items) {
+        $textCond = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty, $label)
+        $hit = $item.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $textCond)
+        if ($hit) {
+            $item.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+            Start-Sleep -Milliseconds 700
+            return $true
+        }
+    }
+    Write-Host "找不到左栏分类 '$label'"
+    return $false
+}
+
 Click-Button "🎛 工具箱"
 Save-Window "dialog-toolbox.png" "游戏工具箱"
+
 $boxHwnd = [GameWallShooter]::Find([uint32]$proc.Id, "游戏工具箱")
 if ($boxHwnd -ne [IntPtr]::Zero) {
+    # 切到「游戏性能」，把优化方案这一屏也留下来
+    if (Select-Nav $boxHwnd "游戏性能") {
+        Save-Window "dialog-toolbox-opt.png" "游戏工具箱"
+    }
     [GameWallShooter]::PostMessage($boxHwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
 }
 

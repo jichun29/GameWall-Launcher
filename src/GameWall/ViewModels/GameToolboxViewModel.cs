@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
 using GameWall.Models;
 using GameWall.Services;
 
@@ -68,10 +69,78 @@ namespace GameWall.ViewModels
 
         public bool IsRevertVisible => IsApplied;
 
+        /// <summary>搜索用：名称、说明、效果三处任意命中即可。</summary>
+        public bool Matches(string keyword)
+        {
+            if (string.IsNullOrWhiteSpace(keyword)) return true;
+            return Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                   || Summary.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                   || Effect.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                   || Id.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+        }
+
         public void Refresh()
         {
             OnPropertyChanged(nameof(IsApplied));
             OnPropertyChanged(nameof(StateText));
+            OnPropertyChanged(nameof(IsRevertVisible));
+        }
+    }
+
+    /// <summary>左侧分类栏的一项。</summary>
+    public sealed class ToolboxNavItem : ObservableObject
+    {
+        private bool _isSelected;
+        private int _count;
+        private string _badgeText = string.Empty;
+
+        public ToolboxNavItem(string key, string title, string glyph, bool showTopDivider = false)
+        {
+            Key = key;
+            Title = title;
+            Glyph = glyph;
+            ShowTopDivider = showTopDivider;
+        }
+
+        /// <summary>分类键：hardware / power / 分类名。</summary>
+        public string Key { get; }
+
+        public string Title { get; }
+
+        public string Glyph { get; }
+
+        /// <summary>是不是某一组的第一项，界面上在它上面画一条分隔线。</summary>
+        public bool ShowTopDivider { get; }
+
+        /// <summary>右侧角标上的数字（优化项条数 / 已应用条数），0 就不显示。</summary>
+        public int Count
+        {
+            get => _count;
+            set
+            {
+                if (SetProperty(ref _count, value))
+                {
+                    BadgeText = value > 0 ? value.ToString() : string.Empty;
+                    OnPropertyChanged(nameof(HasBadge));
+                }
+            }
+        }
+
+        public string BadgeText
+        {
+            get => _badgeText;
+            private set
+            {
+                if (SetProperty(ref _badgeText, value)) OnPropertyChanged(nameof(HasBadge));
+            }
+        }
+
+        public bool HasBadge => !string.IsNullOrEmpty(BadgeText);
+
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set => SetProperty(ref _isSelected, value);
         }
     }
 
@@ -106,25 +175,33 @@ namespace GameWall.ViewModels
     }
 
     /// <summary>
-    /// 游戏工具箱的视图模型：硬件快照 + 优化清单 + 电源方案。
+    /// 游戏工具箱的视图模型：左栏分类、右栏整块内容。
+    /// 三个页面分别是「硬件信息」「优化方案」「电源方案」，中间六类优化项共用同一个
+    /// 页面，靠左栏的选中项切换分类。
     /// 所有操作都是用户显式点击才执行，不会在后台偷偷改系统。
     /// </summary>
     public sealed class GameToolboxViewModel : ObservableObject
     {
+        /// <summary>左栏里「硬件信息」那一项的键。</summary>
+        public const string NavHardware = "hardware";
+
+        /// <summary>左栏里「电源方案」那一项的键。</summary>
+        public const string NavPower = "power";
+
         private readonly TweakService _tweaks = new();
         private HardwareSnapshot _snapshot = new();
         private bool _isElevated;
         private string _statusText = "点「重新检测」可以刷新硬件信息。";
         private bool _isBusy;
-        private string _selectedCategory = "全部";
+        private ToolboxNavItem? _selectedNav;
         private bool _showAppliedOnly;
         private bool _includeHighRisk;
+        private string _searchText = string.Empty;
+        private PowerPlanInfo? _selectedPlan;
 
         public GameToolboxViewModel()
         {
             _isElevated = TweakService.IsElevated();
-            Categories.Add("全部");
-            foreach (var category in TweakCatalog.Categories) Categories.Add(category);
 
             RefreshCommand = new RelayCommand(_ => RefreshAll(), _ => !IsBusy);
             ApplySelectedCommand = new AsyncRelayCommand(() => ApplySelectedAsync(), () => !IsBusy && SelectedTweaks.Count > 0);
@@ -132,11 +209,14 @@ namespace GameWall.ViewModels
             ExportTextCommand = new RelayCommand(_ => Export("txt"), _ => !IsBusy);
             ExportJsonCommand = new RelayCommand(_ => Export("json"), _ => !IsBusy);
             ApplyPresetCommand = new RelayCommand(p => ApplyPreset(p as string));
+            SelectAllCommand = new RelayCommand(_ => SelectAllInCurrentCategory(), _ => !IsBusy);
+            ClearSelectionCommand = new RelayCommand(_ => ClearSelection(), _ => !IsBusy);
             UseHighPerformanceCommand = new AsyncRelayCommand(() => UsePowerPlanAsync(PowerMode.HighPerformance), () => !IsBusy);
             UseUltimateCommand = new AsyncRelayCommand(() => UsePowerPlanAsync(PowerMode.Ultimate), () => !IsBusy);
             UseBalancedCommand = new AsyncRelayCommand(() => UsePowerPlanAsync(PowerMode.Balanced), () => !IsBusy);
             ShowElevateHintCommand = new RelayCommand(_ => ShowElevateHint());
 
+            BuildNavItems();
             LoadTweaks();
         }
 
@@ -150,19 +230,34 @@ namespace GameWall.ViewModels
         public ObservableCollection<HardwareSection> Sections { get; } = new();
         public ObservableCollection<HardwareAdvice> Advices { get; } = new();
         public ObservableCollection<TweakItemViewModel> Tweaks { get; } = new();
-        public ObservableCollection<string> Categories { get; } = new();
         public ObservableCollection<PowerPlanInfo> PowerPlans { get; } = new();
 
-        /// <summary>按当前分类 / 「只看已应用」筛选后的可见列表（界面直接绑这个）。</summary>
+        /// <summary>左侧分类栏。</summary>
+        public ObservableCollection<ToolboxNavItem> NavItems { get; } = new();
+
+        /// <summary>按当前分类 / 搜索 / 「只看已应用」筛选后的可见列表（界面直接绑这个）。</summary>
         public ObservableCollection<TweakItemViewModel> FilteredTweaks { get; } = new();
 
         public HardwareSnapshot Snapshot => _snapshot;
+
+        public string VersionText => AppInfo.VersionLabel;
 
         public bool IsElevated => _isElevated;
 
         public string ElevationText => _isElevated
             ? "已以管理员身份运行，系统级优化可以直接应用。"
             : "当前不是管理员身份，带锁标记的优化项需要以管理员身份重新启动才能应用。";
+
+        public string ElevationShortText => _isElevated ? "管理员权限" : "普通权限";
+
+        public string ElevationHintText => _isElevated
+            ? "系统级项目也能直接改"
+            : "带锁的项目需要管理员身份";
+
+        /// <summary>分类栏底部那个小圆点：有权限是绿的，没有是琥珀的。</summary>
+        public Brush ElevationBrush => _isElevated
+            ? (Brush)Application.Current.Resources["Brush.Success"]
+            : (Brush)Application.Current.Resources["Brush.Warning"];
 
         public string StatusText
         {
@@ -180,18 +275,91 @@ namespace GameWall.ViewModels
                     RefreshCommand.NotifyCanExecuteChanged();
                     ApplySelectedCommand.NotifyCanExecuteChanged();
                     RevertAllCommand.NotifyCanExecuteChanged();
+                    SelectAllCommand.NotifyCanExecuteChanged();
+                    ClearSelectionCommand.NotifyCanExecuteChanged();
                 }
             }
         }
 
-        public string SelectedCategory
+        // ── 左栏导航 ─────────────────────────────────────────
+
+        public ToolboxNavItem? SelectedNav
         {
-            get => _selectedCategory;
+            get => _selectedNav;
             set
             {
-                if (SetProperty(ref _selectedCategory, value)) ApplyFilter();
+                if (value == null) return;
+                if (!SetProperty(ref _selectedNav, value)) return;
+
+                foreach (var item in NavItems) item.IsSelected = ReferenceEquals(item, value);
+                RaisePageState();
+                ApplyFilter();
             }
         }
+
+        /// <summary>当前是不是「硬件信息」页。</summary>
+        public bool IsHardwarePage => SelectedNav?.Key == NavHardware;
+
+        /// <summary>当前是不是「电源方案」页。</summary>
+        public bool IsPowerPage => SelectedNav?.Key == NavPower;
+
+        /// <summary>其余分类都归到「优化方案」页，靠 FilteredTweaks 换内容。</summary>
+        public bool IsTweakPage => !IsHardwarePage && !IsPowerPage;
+
+        public string CurrentTitle => SelectedNav?.Title ?? "硬件信息";
+
+        public string CurrentSubtitle
+        {
+            get
+            {
+                if (IsHardwarePage) return "本机 CPU / 显卡 / 内存 / 磁盘 / 显示器 / 主板与网络，全部只读采集。";
+                if (IsPowerPage) return "切换系统电源方案，改的是 Windows 自己的设置。";
+                var applied = FilteredTweaks.Count(t => t.IsApplied);
+                return $"{FilteredTweaks.Count} 项，其中 {applied} 项已应用。勾选后点右下角「应用勾选的优化」。";
+            }
+        }
+
+        private void RaisePageState()
+        {
+            OnPropertyChanged(nameof(IsHardwarePage));
+            OnPropertyChanged(nameof(IsPowerPage));
+            OnPropertyChanged(nameof(IsTweakPage));
+            OnPropertyChanged(nameof(CurrentTitle));
+            OnPropertyChanged(nameof(CurrentSubtitle));
+        }
+
+        private void BuildNavItems()
+        {
+            NavItems.Add(new ToolboxNavItem(NavHardware, "硬件信息", "🧠"));
+
+            var first = true;
+            foreach (var category in TweakCatalog.Categories)
+            {
+                // 六个优化分类属于同一组，组头上画一条分隔线，和上下两组区分开
+                NavItems.Add(new ToolboxNavItem(category, category, GlyphFor(category), showTopDivider: first));
+                first = false;
+            }
+
+            NavItems.Add(new ToolboxNavItem(NavPower, "电源方案", "⚡", showTopDivider: true));
+
+            _selectedNav = NavItems[0];
+            _selectedNav.IsSelected = true;
+            OnPropertyChanged(nameof(SelectedNav));
+            RaisePageState();
+        }
+
+        private static string GlyphFor(string category) => category switch
+        {
+            "游戏性能" => "🚀",
+            "图形与显示" => "🎮",
+            "输入延迟" => "🖱",
+            "网络" => "🌐",
+            "后台与系统" => "🧩",
+            "隐私与广告" => "🛡",
+            _ => "•",
+        };
+
+        // ── 优化项筛选 ───────────────────────────────────────
 
         public bool ShowAppliedOnly
         {
@@ -202,11 +370,26 @@ namespace GameWall.ViewModels
             }
         }
 
+        public string SearchText
+        {
+            get => _searchText;
+            set
+            {
+                if (SetProperty(ref _searchText, value ?? string.Empty)) ApplyFilter();
+            }
+        }
+
         public bool IncludeHighRisk
         {
             get => _includeHighRisk;
             set => SetProperty(ref _includeHighRisk, value);
         }
+
+        public bool IsTweakEmpty => IsTweakPage && FilteredTweaks.Count == 0;
+
+        public string TweakEmptyHint => string.IsNullOrWhiteSpace(SearchText)
+            ? "这一类里的项目可能都已经应用了。取消「只看已应用」看看全部。"
+            : $"没有名称或说明里带「{SearchText}」的优化项。";
 
         public RelayCommand RefreshCommand { get; }
         public AsyncRelayCommand ApplySelectedCommand { get; }
@@ -214,6 +397,8 @@ namespace GameWall.ViewModels
         public RelayCommand ExportTextCommand { get; }
         public RelayCommand ExportJsonCommand { get; }
         public RelayCommand ApplyPresetCommand { get; }
+        public RelayCommand SelectAllCommand { get; }
+        public RelayCommand ClearSelectionCommand { get; }
         public AsyncRelayCommand UseHighPerformanceCommand { get; }
         public AsyncRelayCommand UseUltimateCommand { get; }
         public AsyncRelayCommand UseBalancedCommand { get; }
@@ -226,7 +411,38 @@ namespace GameWall.ViewModels
             get
             {
                 var applied = Tweaks.Count(t => t.IsApplied);
-                return applied == 0 ? "还没有应用任何优化项" : $"已应用 {applied} 项优化";
+                var total = Tweaks.Count;
+                return applied == 0
+                    ? $"共 {total} 项优化方案，还没有应用任何一项"
+                    : $"共 {total} 项优化方案，已应用 {applied} 项";
+            }
+        }
+
+        // ── 电源方案 ─────────────────────────────────────────
+
+        public PowerPlanInfo? SelectedPlan
+        {
+            get => _selectedPlan;
+            set
+            {
+                if (SetProperty(ref _selectedPlan, value))
+                {
+                    OnPropertyChanged(nameof(HasPlanSelection));
+                    OnPropertyChanged(nameof(PlanHintText));
+                }
+            }
+        }
+
+        public bool HasPlanSelection => SelectedPlan != null && !SelectedPlan.IsActive;
+
+        public string PlanHintText
+        {
+            get
+            {
+                if (SelectedPlan == null) return "选中一套方案后点左边按钮切换。";
+                return SelectedPlan.IsActive
+                    ? $"「{SelectedPlan.Name}」正在使用中。"
+                    : $"将把系统电源方案切换到「{SelectedPlan.Name}」。";
             }
         }
 
@@ -246,9 +462,31 @@ namespace GameWall.ViewModels
                     SelectionChanged = () =>
                     {
                         OnPropertyChanged(nameof(SelectedCountText));
+                        OnPropertyChanged(nameof(AppliedSummary));
                         ApplySelectedCommand.NotifyCanExecuteChanged();
+                        UpdateNavBadges();
                     },
                 });
+            }
+            UpdateNavBadges();
+        }
+
+        /// <summary>分类角标：没应用的显示总数，全应用完了显示已应用数。</summary>
+        private void UpdateNavBadges()
+        {
+            foreach (var nav in NavItems)
+            {
+                if (nav.Key == NavHardware)
+                {
+                    nav.Count = Sections.Count;
+                    continue;
+                }
+                if (nav.Key == NavPower)
+                {
+                    nav.Count = 0;
+                    continue;
+                }
+                nav.Count = Tweaks.Count(t => t.Category == nav.Key);
             }
         }
 
@@ -259,12 +497,17 @@ namespace GameWall.ViewModels
         /// </summary>
         private void ApplyFilter()
         {
+            // 左栏的高亮跟着 SelectedNav 走；这里再兜一次，防止外部改了集合后高亮丢了
+            if (_selectedNav != null) _selectedNav.IsSelected = true;
+
             IEnumerable<TweakItemViewModel> query = Tweaks;
-            if (!string.Equals(SelectedCategory, "全部", StringComparison.Ordinal))
+            if (!IsHardwarePage && !IsPowerPage && _selectedNav != null)
             {
-                query = query.Where(t => string.Equals(t.Category, SelectedCategory, StringComparison.Ordinal));
+                var category = _selectedNav.Key;
+                query = query.Where(t => string.Equals(t.Category, category, StringComparison.Ordinal));
             }
             if (ShowAppliedOnly) query = query.Where(t => t.IsApplied);
+            if (!string.IsNullOrWhiteSpace(SearchText)) query = query.Where(t => t.Matches(SearchText.Trim()));
 
             var wanted = query.ToList();
             for (var i = FilteredTweaks.Count - 1; i >= 0; i--)
@@ -281,6 +524,9 @@ namespace GameWall.ViewModels
 
             OnPropertyChanged(nameof(AppliedSummary));
             OnPropertyChanged(nameof(SelectedCountText));
+            OnPropertyChanged(nameof(CurrentSubtitle));
+            OnPropertyChanged(nameof(IsTweakEmpty));
+            OnPropertyChanged(nameof(TweakEmptyHint));
             ApplySelectedCommand.NotifyCanExecuteChanged();
         }
 
@@ -307,6 +553,7 @@ namespace GameWall.ViewModels
 
                 PowerPlans.Clear();
                 foreach (var plan in PowerPlanService.ListPlans()) PowerPlans.Add(plan);
+                SelectedPlan = PowerPlans.FirstOrDefault(p => p.IsActive);
 
                 StatusText = $"硬件信息已更新（{DateTime.Now:HH:mm:ss}）。" +
                              (IsElevated ? string.Empty : " 部分系统级项目需要管理员权限。");
@@ -320,6 +567,40 @@ namespace GameWall.ViewModels
             {
                 IsBusy = false;
             }
+        }
+
+        // ── 当前分类的批量勾选 ───────────────────────────────
+
+        /// <summary>勾选当前分类里所有还没应用的项。</summary>
+        private void SelectAllInCurrentCategory()
+        {
+            var targets = FilteredTweaks.Where(t => !t.IsApplied).ToList();
+            foreach (var item in targets)
+            {
+                if (item.Definition.Risk == TweakRisk.High && !IncludeHighRisk) continue;
+                item.IsSelected = true;
+            }
+            StatusText = targets.Count == 0
+                ? "当前分类里没有可勾选的项。"
+                : $"已勾选当前分类的 {targets.Count(t => t.IsSelected)} 项，点「应用勾选的优化」生效。";
+            ApplyFilter();
+        }
+
+        private void ClearSelection()
+        {
+            foreach (var item in Tweaks) item.IsSelected = false;
+            StatusText = "已清空勾选。";
+            ApplyFilter();
+        }
+
+        /// <summary>清空搜索与「只看已应用」，界面上的空状态按钮用。</summary>
+        public void ResetFilter()
+        {
+            _searchText = string.Empty;
+            _showAppliedOnly = false;
+            OnPropertyChanged(nameof(SearchText));
+            OnPropertyChanged(nameof(ShowAppliedOnly));
+            ApplyFilter();
         }
 
         private void BuildSections()
@@ -492,7 +773,7 @@ namespace GameWall.ViewModels
 
             if (!IncludeHighRisk && items.Any(t => t.Definition.Risk == TweakRisk.High))
             {
-                StatusText = "勾选项里包含高风险项目，请先在上方打开「包含高风险项」。";
+                StatusText = "勾选项里包含高风险项目，请先打开右上角的「包含高风险项」。";
                 return;
             }
 
@@ -506,11 +787,12 @@ namespace GameWall.ViewModels
                     if (_tweaks.IsApplied(item.Id)) item.IsApplied = true;
                 }
                 ApplyFilter();
+                UpdateNavBadges();
                 StatusText = result.Message;
                 if (result.Failures.Count > 0)
                 {
                     Notify?.Invoke("部分优化未成功", result.Message + Environment.NewLine + Environment.NewLine +
-                                                     string.Join(Environment.NewLine, result.Failures));
+                                                      string.Join(Environment.NewLine, result.Failures));
                 }
             }
             catch (Exception ex)
@@ -546,7 +828,7 @@ namespace GameWall.ViewModels
             }
         }
 
-        /// <summary>还原单条（界面上的「还原」按钮）。</summary>
+        /// <summary>还原单条（界面上的「撤销」按钮）。</summary>
         public async Task RevertOneAsync(TweakItemViewModel? item)
         {
             if (item == null) return;
@@ -556,6 +838,7 @@ namespace GameWall.ViewModels
                 var result = await Task.Run(() => _tweaks.Revert(item.Id));
                 if (result.Success) item.IsApplied = false;
                 ApplyFilter();
+                UpdateNavBadges();
                 StatusText = result.Message;
             }
             catch (Exception ex)
@@ -591,9 +874,7 @@ namespace GameWall.ViewModels
                 });
 
                 StatusText = result.Message;
-
-                PowerPlans.Clear();
-                foreach (var plan in await Task.Run(PowerPlanService.ListPlans)) PowerPlans.Add(plan);
+                await ReloadPowerPlansAsync();
             }
             catch (Exception ex)
             {
@@ -615,7 +896,7 @@ namespace GameWall.ViewModels
                 : PowerPlanService.SetActive(balanced.Guid);
         }
 
-        /// <summary>切换到列表里任意一套方案（界面双击时调）。</summary>
+        /// <summary>切换到列表里选中的方案。</summary>
         public async Task ActivatePlanAsync(PowerPlanInfo? plan)
         {
             if (plan == null) return;
@@ -624,13 +905,26 @@ namespace GameWall.ViewModels
             {
                 var result = await Task.Run(() => PowerPlanService.SetActive(plan.Guid));
                 StatusText = result.Message;
-                PowerPlans.Clear();
-                foreach (var item in await Task.Run(PowerPlanService.ListPlans)) PowerPlans.Add(item);
+                await ReloadPowerPlansAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("切换电源方案失败", ex);
+                StatusText = "切换电源方案时出现问题：" + ex.Message;
             }
             finally
             {
                 IsBusy = false;
             }
+        }
+
+        /// <summary>重新读一遍方案列表，并把选中项落在当前生效的那套上。</summary>
+        public async Task ReloadPowerPlansAsync()
+        {
+            var plans = await Task.Run(PowerPlanService.ListPlans);
+            PowerPlans.Clear();
+            foreach (var item in plans) PowerPlans.Add(item);
+            SelectedPlan = PowerPlans.FirstOrDefault(p => p.IsActive);
         }
 
         // ── 导出 ─────────────────────────────────────────────

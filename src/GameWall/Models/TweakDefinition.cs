@@ -110,6 +110,22 @@ namespace GameWall.Models
         public bool IsBuiltIn { get; set; }
 
         public string DisplayText => IsActive ? $"{Name}（当前）" : Name;
+
+        /// <summary>
+        /// 一句话说明这套方案是干什么的，界面上当副标题用。
+        /// 按名字认，是因为系统里的方案名可能被用户改过，认不出来就退成通用说明。
+        /// </summary>
+        public string Description
+        {
+            get
+            {
+                if (Name.Contains("卓越", StringComparison.Ordinal)) return "隐藏的内置方案，延迟最低、功耗最高";
+                if (Name.Contains("高性能", StringComparison.Ordinal)) return "不主动降频，玩游戏最稳";
+                if (Name.Contains("平衡", StringComparison.Ordinal)) return "系统默认，性能与功耗折中";
+                if (Name.Contains("节能", StringComparison.Ordinal)) return "尽量省电，性能会打折扣";
+                return IsBuiltIn ? "Windows 内置方案" : "自定义方案";
+            }
+        }
     }
 
     /// <summary>应用/还原一条优化项的结果。</summary>
