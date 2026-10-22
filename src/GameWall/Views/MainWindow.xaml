@@ -1,4 +1,4 @@
-﻿<Window x:Class="GameWall.Views.MainWindow"
+<Window x:Class="GameWall.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -509,7 +509,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
-                <!-- 有新版本时才占高度（Visibility=Collapsed 时 Auto 行自动收成 0） -->
+                <!-- 提示条区（新版本 / 桌面可整理），两条都隐藏时 Auto 行自动收成 0 -->
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
@@ -630,6 +630,9 @@
                         <Button Content="⤓ 平台导入" Style="{StaticResource Button.Tool}"
                                 Command="{Binding ImportCommand}"
                                 ToolTip="从 Steam / Epic / GOG 读取已安装游戏" />
+                        <Button Content="🧹 整理桌面" Style="{StaticResource Button.Tool}"
+                                Command="{Binding TidyDesktopCommand}"
+                                ToolTip="把已经收进游戏墙的游戏快捷方式从桌面挪走（可还原）" />
                     </WrapPanel>
 
                     <!-- 视图切换 + 设置：固定贴右。外框总高同样收在 38 -->
@@ -660,8 +663,9 @@
             </Border>
 
             <!-- ═════════ 更新提示条：只有发现新版本时才出现 ═════════ -->
-            <Border Grid.Row="2"
-                    Background="{DynamicResource Brush.AccentSoft}"
+            <!-- ═════════ 提示条区：新版本 / 桌面可整理 ═════════ -->
+            <StackPanel Grid.Row="2">
+            <Border Background="{DynamicResource Brush.AccentSoft}"
                     BorderBrush="{DynamicResource Brush.AccentGlow}"
                     BorderThickness="0,0,0,1"
                     Padding="20,8"
@@ -693,6 +697,39 @@
                     </StackPanel>
                 </Grid>
             </Border>
+
+            <!-- 桌面还能再干净一点：只在真的还有「已收录但没挪走」的快捷方式时出现 -->
+            <Border Background="{DynamicResource Brush.SurfaceAlt}"
+                    BorderBrush="{DynamicResource Brush.BorderSoft}"
+                    BorderThickness="0,0,0,1"
+                    Padding="20,8"
+                    Visibility="{Binding HasTidyHint, Converter={StaticResource BoolToVis}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="🧹" FontSize="13" Margin="0,0,9,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding TidyBanner}" FontSize="12.5" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Brush.Text}" />
+                        <TextBlock Text="· 挪到备份文件夹，随时能还原"
+                                   FontSize="11.5" Margin="10,0,0,0" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Brush.TextDim}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="去整理" Height="26" Padding="16,0" Margin="0,0,8,0"
+                                Style="{StaticResource Button.Accent}"
+                                Click="ShowTidy_Click" />
+                        <Button Content="忽略" Height="26" Padding="14,0"
+                                Click="DismissTidy_Click" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+            </StackPanel>
 
             <!-- ═════════ 主内容区 ═════════ -->
             <Grid Grid.Row="3">

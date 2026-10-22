@@ -1,4 +1,4 @@
-﻿<Window x:Class="GameWall.Views.Dialogs.SettingsWindow"
+<Window x:Class="GameWall.Views.Dialogs.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="设置"
@@ -149,6 +149,26 @@
 
                     <Border Style="{StaticResource Accent.Divider}" Margin="0,26,0,22" />
 
+                    <!-- ══════ 桌面整理 ══════ -->
+                    <TextBlock Text="桌面整理" Style="{StaticResource Text.Title}" FontSize="15" Margin="0,0,0,10" />
+                    <TextBlock Style="{StaticResource Text.Subtitle}" TextWrapping="Wrap" Margin="0,0,0,14"
+                               Text="游戏都收进游戏墙之后，桌面上的快捷方式就可以挪走了。挪走的文件放在备份目录里，不会删除。" />
+
+                    <CheckBox x:Name="AskTidyBox" Content="扫描 / 导入之后询问是否整理桌面" Margin="0,0,0,14" />
+                    <CheckBox x:Name="TidyHintBox" Content="在顶栏提示「桌面还能再干净一点」" Margin="0,0,0,16" />
+
+                    <TextBlock x:Name="TidyBackupText" Style="{StaticResource Text.Subtitle}"
+                               TextWrapping="Wrap" Margin="0,0,0,12" />
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="立即整理桌面…" Click="OpenTidy_Click" Margin="0,0,10,0" />
+                        <Button x:Name="RestoreShortcutsButton" Content="还原到桌面"
+                                Click="RestoreShortcuts_Click" Margin="0,0,10,0" />
+                        <Button Content="打开备份目录" Click="OpenBackupDir_Click" />
+                    </StackPanel>
+
+                    <Border Style="{StaticResource Accent.Divider}" Margin="0,26,0,22" />
+
                     <!-- ══════ 扫描 ══════ -->
                     <TextBlock Text="扫描目录" Style="{StaticResource Text.Title}" FontSize="15" Margin="0,0,0,10" />
                     <TextBlock Style="{StaticResource Text.Subtitle}" TextWrapping="Wrap" Margin="0,0,0,14"
@@ -218,8 +238,6 @@
                         <TextBlock x:Name="DepthText" Grid.Column="2" Style="{StaticResource Text.Subtitle}"
                                    VerticalAlignment="Center" Margin="14,0,0,0" MinWidth="60" />
                     </Grid>
-
-                    <Border Style="{StaticResource Accent.Divider}" Margin="0,26,0,22" />
 
                     <Border Style="{StaticResource Accent.Divider}" Margin="0,26,0,22" />
 

@@ -138,3 +138,32 @@ if ($btn) {
 } else {
     Write-Host "没有找到「⚙ 设置」按钮"
 }
+
+function Close-Dialog([IntPtr]$h) {
+    try {
+        $r = [System.Windows.Automation.AutomationElement]::FromHandle($h)
+        $c2 = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty, "✕")
+        $x = $r.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c2)
+        if ($x) { $x.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 800 }
+    } catch { }
+}
+
+# 抓完设置窗口后关掉，再打开「整理桌面」
+$dialogs = @()
+foreach ($w in [GWShot2]::Windows($pid32)) {
+    if ($w -ne $mainHwnd -and -not [string]::IsNullOrWhiteSpace([GWShot2]::Title($w))) { $dialogs += $w }
+}
+foreach ($d in $dialogs) { Close-Dialog $d }
+Start-Sleep -Milliseconds 600
+
+$condTidy = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::NameProperty, "🧹 整理桌面")
+$btnTidy = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condTidy)
+if ($btnTidy) {
+    $btnTidy.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Start-Sleep -Milliseconds 1600
+    Save-AllWindows "dialog"
+} else {
+    Write-Host "没有找到「🧹 整理桌面」按钮"
+}

@@ -53,6 +53,7 @@ public partial class MainWindow : Window
         _vm.RequestSettings += () => OpenSettings();
         _vm.RequestImport += () => ImportFromPlatforms();
         _vm.RequestAbout += () => ShowAbout();
+        _vm.RequestTidyDesktop += () => ShowTidyDesktop();
 
         // 检查更新的结果统一交给主窗口处理：用户主动点的要弹窗，
         // 后台自动检查的只有在真发现新版本时才弹（顶栏提示条另外由绑定驱动）
@@ -96,6 +97,9 @@ public partial class MainWindow : Window
 
         // 自动检查更新（每天最多一次），等界面彻底起来之后再发请求
         _ = AutoCheckUpdateAsync();
+
+        // 数一遍桌面上还有多少快捷方式可以收纳（只读目录，很便宜，但要等首屏画完）
+        _ = RefreshTidyHintAsync();
     }
 
     // ══════════════ 更新 ══════════════
@@ -155,6 +159,48 @@ public partial class MainWindow : Window
     private void ShowUpdate_Click(object sender, RoutedEventArgs e) => ShowAbout();
 
     private void DismissUpdate_Click(object sender, RoutedEventArgs e) => _vm.DismissUpdate();
+
+    // ══════════════ 桌面整理 ══════════════
+
+    /// <summary>
+    /// 启动时统计桌面快捷方式。解析 .lnk 要过 WScript.Shell，几十个快捷方式
+    /// 加起来也有几十毫秒，所以等首屏画完再干，别卡住窗口出现。
+    /// </summary>
+    private async Task RefreshTidyHintAsync()
+    {
+        try
+        {
+            await Task.Delay(900);
+            _vm.RefreshTidyHint();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("统计桌面快捷方式失败", ex);
+        }
+    }
+
+    private void ShowTidy_Click(object sender, RoutedEventArgs e) => ShowTidyDesktop();
+
+    private void DismissTidy_Click(object sender, RoutedEventArgs e) => _vm.DismissTidyHint();
+
+    /// <summary>
+    /// 打开整理桌面窗口。整理完（真的挪走了东西）之后重新数一遍桌面，
+    /// 免得顶栏的「还有 N 个可以收纳」停留在一个过时的数字上。
+    /// </summary>
+    private void ShowTidyDesktop()
+    {
+        try
+        {
+            var win = new TidyDesktopWindow(_vm.LibraryGames) { Owner = this };
+            win.ShowDialog();
+
+            _vm.RefreshTidyHint();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("打开整理桌面窗口失败", ex);
+        }
+    }
 
     private void ShowAbout()
     {
@@ -620,6 +666,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        // 拖进来的东西里真的有新游戏，就顺手更新「桌面还能再干净一点」的计数
+        if (added > 0)
+        {
+            _vm.RefreshTidyHint();
+        }
+
         var parts = new List<string>();
         if (added > 0) parts.Add($"新增 {added} 个");
         if (dup > 0) parts.Add($"已存在 {dup} 个");
@@ -670,7 +722,11 @@ public partial class MainWindow : Window
                 ? "没能从这些文件里认出可启动的游戏。\n\nSteam/Epic/GOG 的快捷方式可以直接拖进来，会自动识别成平台启动。"
                 : "这些文件已经在游戏墙里了。";
             MessageBox.Show(message, "GameWall", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
         }
+
+        // 手动添加完不弹框打扰，只在顶栏亮一条「桌面还能再干净一点」的提示
+        _vm.RefreshTidyHint();
     }
 
     private void SearchAndAdd()
@@ -743,8 +799,16 @@ public partial class MainWindow : Window
             }
         }
 
-        MessageBox.Show(added > 0 ? $"已导入 {added} 个游戏。" : "选中的游戏都已经在列表里了。",
-            "GameWall", MessageBoxButton.OK, MessageBoxImage.Information);
+        if (added > 0)
+        {
+            // 导入之后同样问一句要不要顺手整理桌面
+            _vm.OfferTidy($"已从平台导入 {added} 个游戏。");
+        }
+        else
+        {
+            MessageBox.Show("选中的游戏都已经在列表里了。", "GameWall",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 
     // ══════════════ 窗口位置 / 关闭行为 ══════════════

@@ -1,4 +1,4 @@
-# 按主题批量抓图：改动 settings.json 的 Theme 后重启 GameWall，
+﻿# 按主题批量抓图：改动 settings.json 的 Theme 后重启 GameWall，
 # 依次切换卡片式 / 列表式两种视图并各抓一张，再抓设置与关于两个对话框。
 # 用法：powershell -ExecutionPolicy Bypass -File tools\shoot-theme.ps1 -Theme Dark
 param(
@@ -47,6 +47,12 @@ foreach ($n in @('card', 'list', 'dialog-about')) {
 $dlg = Join-Path $outDir 'dialog-设置.png'
 if (Test-Path $dlg) {
     Move-Item -Force $dlg (Join-Path $outDir "$Prefix-dialog-settings.png")
+}
+
+# 整理桌面窗口（shot-dialogs.ps1 会顺手抓一张）
+$tidy = Join-Path $outDir 'dialog-整理桌面.png'
+if (Test-Path $tidy) {
+    Move-Item -Force $tidy (Join-Path $outDir "$Prefix-dialog-tidy.png")
 }
 
 # shot-dialogs.ps1 会额外留一张 shot-main.png，内容和 wall 重复，顺手清掉

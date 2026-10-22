@@ -127,6 +127,32 @@ function Audit-Window([IntPtr]$hwnd, [string]$tag) {
         return $null
     }
 
+    # 把所有祖先的矩形逐层求交。UIA 不给裁剪信息，但子元素的布局矩形一旦超出
+    # 裁剪容器的矩形，画面上就一定是被裁掉的，求交后才是真正可见的那一块。
+    function Clip-ToAncestors($elem, $r, $winRect) {
+        try {
+            $p = $walker.GetParent($elem)
+            $guard = 0
+            while ($null -ne $p -and $guard -lt 14) {
+                $guard++
+                $ct = $p.Current.ControlType
+                if ($ct -eq [System.Windows.Automation.ControlType]::Window) { break }
+                $ar = $p.Current.BoundingRectangle
+                if ($ar.Width -gt 0 -and $ar.Height -gt 0) {
+                    $x1 = [Math]::Max($r.X, $ar.X)
+                    $y1 = [Math]::Max($r.Y, $ar.Y)
+                    $x2 = [Math]::Min($r.X + $r.Width, $ar.X + $ar.Width)
+                    $y2 = [Math]::Min($r.Y + $r.Height, $ar.Y + $ar.Height)
+                    if ($x2 -le $x1 -or $y2 -le $y1) { return $null }
+                    $r = New-Object System.Windows.Rect($x1, $y1, ($x2 - $x1), ($y2 - $y1))
+                }
+                $p = $walker.GetParent($p)
+            }
+            return $r
+        } catch { }
+        return $r
+    }
+
     foreach ($e in $all) {
         try {
             # 完全滚出视口的元素不看
@@ -144,6 +170,12 @@ function Audit-Window([IntPtr]$hwnd, [string]$tag) {
                 if ($ix2 -le $ix1 -or $iy2 -le $iy1) { continue }   # 完全在视口外
                 $r = New-Object System.Windows.Rect($ix1, $iy1, ($ix2 - $ix1), ($iy2 - $iy1))
             }
+
+            # 再与所有祖先容器求交（ClipToBounds 的 Border / Grid 等
+            # UIA 一样不会帮你裁，剪掉之后才是屏幕上真正看得到的那部分）
+            $clipped = Clip-ToAncestors $e $r $rect
+            if ($null -eq $clipped) { continue }
+            $r = $clipped
 
             $ct = $e.Current.ControlType.ProgrammaticName -replace 'ControlType\.', ''
             $nm = $e.Current.Name
@@ -298,6 +330,18 @@ if (Invoke-ByName "ⓘ 关于") {
             [GWAudit]::SetWindowPos($w, [IntPtr]::Zero, 960, 40, 0, 0, 0x0001) | Out-Null
             Start-Sleep -Milliseconds 800
             Audit-Window $w "06-about"
+        }
+    }
+    Close-TopDialog $mainHwnd
+}
+
+# 整理桌面对话框
+if (Invoke-ByName "🧹 整理桌面") {
+    foreach ($w in [GWAudit]::Windows($pid32)) {
+        if ($w -ne $mainHwnd) {
+            [GWAudit]::SetWindowPos($w, [IntPtr]::Zero, 960, 40, 0, 0, 0x0001) | Out-Null
+            Start-Sleep -Milliseconds 800
+            Audit-Window $w "07-tidy"
         }
     }
     Close-TopDialog $mainHwnd

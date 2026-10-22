@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -67,6 +67,11 @@ public partial class SettingsWindow : Window
         AutoStartBox.IsChecked = _working.AutoStart;
         ConfirmRemoveBox.IsChecked = _working.ConfirmOnRemove;
         MinimizeOnLaunchBox.IsChecked = _working.MinimizeOnGameLaunch;
+
+        // 桌面整理区
+        AskTidyBox.IsChecked = _working.AskTidyAfterImport;
+        TidyHintBox.IsChecked = _working.ShowTidyHint;
+        UpdateTidyBackupText();
 
         PathList.ItemsSource = _working.ScanPaths;
         UpdatePathHint();
@@ -435,6 +440,86 @@ public partial class SettingsWindow : Window
         LivePreview();
     }
 
+    // ══════════════ 桌面整理 ══════════════
+
+    /// <summary>把备份目录里有多少批、多少条显示出来。</summary>
+    private void UpdateTidyBackupText()
+    {
+        try
+        {
+            var backups = DesktopShortcutService.ListBackups();
+            var total = backups.Sum(b => b.Count);
+
+            TidyBackupText.Text = backups.Count == 0
+                ? "备份目录：" + DesktopShortcutService.BackupRoot + "（还没有收纳过）"
+                : $"备份目录：{DesktopShortcutService.BackupRoot}\n" +
+                  $"现有 {backups.Count} 批共 {total} 个快捷方式，最近一次：{backups[0].CreatedAt:yyyy-MM-dd HH:mm}";
+
+            RestoreShortcutsButton.IsEnabled = backups.Any(b => b.Count > 0);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("读取桌面备份信息失败", ex);
+            TidyBackupText.Text = "备份目录：" + DesktopShortcutService.BackupRoot;
+            RestoreShortcutsButton.IsEnabled = false;
+        }
+    }
+
+    private void OpenTidy_Click(object sender, RoutedEventArgs e)
+    {
+        // 设置窗口里还没保存的改动不影响整理功能，所以传当前库就行
+        var win = new TidyDesktopWindow(new LibraryService().Games.ToList()) { Owner = this };
+        win.ShowDialog();
+        UpdateTidyBackupText();
+    }
+
+    private void RestoreShortcuts_Click(object sender, RoutedEventArgs e)
+    {
+        var backups = DesktopShortcutService.ListBackups();
+        if (backups.Count == 0)
+        {
+            MessageBox.Show(this, "还没有收纳过桌面快捷方式。", "GameWall",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // 只还原最近一批：多条批次一起还原会把已经删掉的游戏快捷方式也塞回桌面
+        var latest = backups[0];
+        if (MessageBox.Show(this,
+                $"把最近一批（{latest.CreatedAt:yyyy-MM-dd HH:mm}，{latest.Count} 个）还原回桌面？\r\n\r\n" +
+                "桌面上已有同名文件的会跳过，不覆盖。",
+                "还原快捷方式", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var (restored, skipped, failed) = DesktopShortcutService.Restore(latest.Directory);
+        MessageBox.Show(this,
+            $"已还原 {restored} 个" +
+            (skipped > 0 ? $"，跳过 {skipped} 个同名文件" : string.Empty) +
+            (failed > 0 ? $"，失败 {failed} 个" : string.Empty) + "。",
+            "GameWall", MessageBoxButton.OK, MessageBoxImage.Information);
+
+        UpdateTidyBackupText();
+    }
+
+    private void OpenBackupDir_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(DesktopShortcutService.BackupRoot);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = DesktopShortcutService.BackupRoot,
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("打开备份目录失败", ex);
+        }
+    }
+
     // ══════════════ 更新 ══════════════
 
     private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
@@ -534,6 +619,8 @@ public partial class SettingsWindow : Window
         _working.AutoStart = AutoStartBox.IsChecked == true;
         _working.ConfirmOnRemove = ConfirmRemoveBox.IsChecked == true;
         _working.MinimizeOnGameLaunch = MinimizeOnLaunchBox.IsChecked == true;
+        _working.AskTidyAfterImport = AskTidyBox.IsChecked == true;
+        _working.ShowTidyHint = TidyHintBox.IsChecked == true;
 
         // 回写到调用方持有的对象上（引用不变，主窗口无需重新绑定）
         CopyInto(_working, _target);
@@ -561,6 +648,8 @@ public partial class SettingsWindow : Window
         to.EnableCardAnimations = from.EnableCardAnimations;
         to.AutoCheckUpdate = from.AutoCheckUpdate;
         to.UpdateSource = from.UpdateSource;
+        to.AskTidyAfterImport = from.AskTidyAfterImport;
+        to.ShowTidyHint = from.ShowTidyHint;
         to.ScanPaths = from.ScanPaths.ToList();
         to.ScanDepth = from.ScanDepth;
         to.MinExecutableSize = from.MinExecutableSize;

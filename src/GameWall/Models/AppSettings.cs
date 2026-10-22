@@ -151,6 +151,16 @@ public sealed class AppSettings
     /// <summary>上次检查更新的时间（预留）</summary>
     public DateTime? LastCheckAt { get; set; }
 
+    // ── 桌面整理 ────────────────────────────────────────────
+    /// <summary>
+    /// 扫描 / 导入之后，如果发现桌面上还有「已收录但没挪走」的快捷方式，
+    /// 是否主动弹出整理窗口。默认开着——大多数人就是因为桌面太乱才来用这个工具的。
+    /// </summary>
+    public bool AskTidyAfterImport { get; set; } = true;
+
+    /// <summary>上次整理桌面后是否还提示（用户点过「以后别问了」就关掉）</summary>
+    public bool ShowTidyHint { get; set; } = true;
+
     // ── 更新 ────────────────────────────────────────────────
     /// <summary>启动时自动检查更新（每天最多真正请求一次 GitHub）</summary>
     public bool AutoCheckUpdate { get; set; } = true;

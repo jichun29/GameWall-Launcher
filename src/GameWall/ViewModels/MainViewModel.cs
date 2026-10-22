@@ -62,6 +62,7 @@ public sealed class MainViewModel : ObservableObject
         ClearFiltersCommand = new RelayCommand(ClearFilters);
         RefreshMissingCommand = new RelayCommand(_ => RefreshAllVisuals());
         AboutCommand = new RelayCommand(_ => RequestAbout?.Invoke());
+        TidyDesktopCommand = new RelayCommand(_ => RequestTidyDesktop?.Invoke(), _ => TotalCount > 0);
         CheckUpdateCommand = new AsyncRelayCommand(() => CheckUpdateAsync(interactive: true), () => !IsCheckingUpdate);
         SetViewModeCommand = new RelayCommand(p =>
         {
@@ -88,12 +89,18 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>请求打开「关于」窗口</summary>
     public event Action? RequestAbout;
 
+    /// <summary>请求打开「整理桌面」窗口</summary>
+    public event Action? RequestTidyDesktop;
+
     // ── 数据 ────────────────────────────────────────────────
     public ObservableCollection<GameCardViewModel> Cards { get; }
 
     public ObservableCollection<string> TagOptions { get; }
 
     public AppSettings Settings => _settings.Current;
+
+    /// <summary>游戏库原始条目（整理桌面时要拿它判断哪些快捷方式已被收录）</summary>
+    public IReadOnlyList<GameEntry> LibraryGames => _library.Games;
 
     public int TotalCount => _library.Games.Count;
 
@@ -120,6 +127,9 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand SetViewModeCommand { get; }
     public RelayCommand AboutCommand { get; }
     public AsyncRelayCommand CheckUpdateCommand { get; }
+
+    /// <summary>「整理桌面」：把已收录游戏的桌面快捷方式挪进备份目录</summary>
+    public RelayCommand TidyDesktopCommand { get; }
 
     // ── 筛选状态 ────────────────────────────────────────────
     public string SearchText
@@ -250,6 +260,76 @@ public sealed class MainViewModel : ObservableObject
     {
         UpdateBanner = string.Empty;
         AvailableUpdate = null;
+    }
+
+    // ── 桌面整理提示 ────────────────────────────────────────
+
+    private int _pendingDesktopShortcuts;
+    private string _tidyBanner = string.Empty;
+
+    /// <summary>桌面上还有多少个「已收录但没挪走」的快捷方式</summary>
+    public int PendingDesktopShortcuts
+    {
+        get => _pendingDesktopShortcuts;
+        private set
+        {
+            if (SetProperty(ref _pendingDesktopShortcuts, value))
+            {
+                OnPropertyChanged(nameof(HasTidyHint));
+            }
+        }
+    }
+
+    /// <summary>顶栏「桌面还能再干净一点」提示的可见性</summary>
+    public bool HasTidyHint => _pendingDesktopShortcuts > 0 && !string.IsNullOrEmpty(_tidyBanner);
+
+    /// <summary>桌面整理提示文字</summary>
+    public string TidyBanner
+    {
+        get => _tidyBanner;
+        private set
+        {
+            if (SetProperty(ref _tidyBanner, value))
+            {
+                OnPropertyChanged(nameof(HasTidyHint));
+            }
+        }
+    }
+
+    /// <summary>
+    /// 重新数一遍桌面上有多少快捷方式可以收纳。
+    /// 扫描 / 导入 / 手动添加之后调用一次，顺带更新顶栏提示。
+    /// </summary>
+    /// <returns>可以收纳的条数</returns>
+    public int RefreshTidyHint()
+    {
+        var count = 0;
+
+        try
+        {
+            if (Settings.ShowTidyHint && _library.Games.Count > 0)
+            {
+                count = DesktopShortcutService.CountPending(_library.Games);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("统计桌面快捷方式失败", ex);
+        }
+
+        PendingDesktopShortcuts = count;
+        TidyBanner = count > 0
+            ? $"桌面上还有 {count} 个游戏的快捷方式可以收纳"
+            : string.Empty;
+
+        return count;
+    }
+
+    /// <summary>用户点了「以后别提示」：本次运行不再显示这条提示。</summary>
+    public void DismissTidyHint()
+    {
+        TidyBanner = string.Empty;
+        OnPropertyChanged(nameof(HasTidyHint));
     }
 
     /// <summary>
@@ -823,18 +903,25 @@ public sealed class MainViewModel : ObservableObject
     }
 
     private async Task ScanAsync()
-    {        try
+    {
+        try
         {
             var progress = new Progress<string>(text => BusyText = text);
             var (added, skipped) = await ScanAndImportAsync(progress).ConfigureAwait(true);
 
-            MessageBox.Show(
-                added == 0 && skipped == 0
-                    ? "没有在配置的目录里找到新的游戏。\n\n可以到「设置」里添加扫描目录。"
-                    : $"扫描完成：新增 {added} 个游戏，跳过 {skipped} 个已存在的。",
-                "GameWall",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            if (added == 0 && skipped == 0)
+            {
+                MessageBox.Show(
+                    "没有在配置的目录里找到新的游戏。\n\n可以到「设置」里添加扫描目录。",
+                    "GameWall",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            // 扫完之后顺手看一眼桌面：如果刚进来的这些游戏在桌面上还留着快捷方式，
+            // 现在正是收拾掉它们的最好时机（用户刚把游戏收进来，桌面还是乱的）
+            OfferTidy($"扫描完成：新增 {added} 个游戏，跳过 {skipped} 个已存在的。");
         }
         catch (OperationCanceledException)
         {
@@ -844,6 +931,45 @@ public sealed class MainViewModel : ObservableObject
         {
             Logger.Error("自动扫描失败", ex);
             MessageBox.Show(ex.Message, "扫描失败", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>
+    /// 扫描 / 导入结束后调用：先汇报结果，再（在必要时）问一句要不要顺手整理桌面。
+    /// 只在「真的新增了游戏」且「桌面上确实还有可收纳的快捷方式」时才会问。
+    /// </summary>
+    /// <param name="summary">已经拼好的结果说明，例如「扫描完成：新增 3 个游戏」</param>
+    public void OfferTidy(string summary)
+    {
+        var pending = 0;
+        try
+        {
+            pending = RefreshTidyHint();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("统计桌面快捷方式失败", ex);
+        }
+
+        if (pending == 0 || !Settings.AskTidyAfterImport)
+        {
+            MessageBox.Show(summary, "GameWall", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var answer = MessageBox.Show(
+            summary + "\n\n" +
+            $"另外，桌面上还有 {pending} 个游戏的快捷方式已经收进游戏墙了。\n" +
+            "要现在把它们挪走吗？\n\n" +
+            "（不会删除文件，只是移到一个备份文件夹，随时可以还原）",
+            "整理桌面",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question,
+            MessageBoxResult.Yes);
+
+        if (answer == MessageBoxResult.Yes)
+        {
+            RequestTidyDesktop?.Invoke();
         }
     }
 
