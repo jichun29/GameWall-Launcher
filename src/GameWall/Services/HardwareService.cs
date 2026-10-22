@@ -36,7 +36,10 @@ namespace GameWall.Services
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
 
-        [StructLayout(LayoutKind.Sequential)]
+        // CharSet 必须是 Unicode：DISPLAY_DEVICE 里是 WCHAR 数组，
+        // 少写这一句 ByValTStr 会按 ANSI 排布，结构体只有 424 字节（正确是 840），
+        // 传给 EnumDisplayDevicesW 后 cb 不匹配，枚举直接停在第一个、分辨率也读不出来。
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct DISPLAY_DEVICE
         {
             public int cb;
@@ -47,7 +50,11 @@ namespace GameWall.Services
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceKey;
         }
 
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        // DEVMODE 有两种重载：DEVMODEA（156 字节）与 DEVMODEW（220 字节）。
+        // 下面的 DllImport 写的是 CharSet.Unicode，实际调的是 EnumDisplaySettingsW，
+        // 所以这里必须也是 Unicode 版本 —— 之前写 Ansi 时结构体大小对不上，
+        // 函数返回 True 却把所有字段填成 0，分辨率和刷新率全读不到。
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct DEVMODE
         {
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmDeviceName;
@@ -186,26 +193,22 @@ namespace GameWall.Services
                         DriverVersion = (sub.GetValue("DriverVersion") as string)?.Trim() ?? string.Empty,
                         DriverDate = FormatDriverDate(sub.GetValue("DriverDate") as string),
                         Vendor = (sub.GetValue("ProviderName") as string)?.Trim() ?? string.Empty,
+                        IsVirtual = IsVirtualAdapter(name!),
                     };
 
-                    // 显存：优先读硬件信息里的 qwMemorySize（QWORD），没有就退回 MemorySize（DWORD，单位 MB 的不同版本兼容）
-                    var hardware = sub.OpenSubKey("HardwareInformation");
-                    if (hardware?.GetValue("qwMemorySize") is byte[] qwBytes && qwBytes.Length == 8)
-                    {
-                        gpu.MemoryBytes = BitConverter.ToInt64(qwBytes, 0);
-                    }
-                    else if (sub.GetValue("HardwareInformation.MemorySize") is byte[] memBytes && memBytes.Length >= 4)
-                    {
-                        gpu.MemoryBytes = BitConverter.ToUInt32(memBytes, 0);
-                    }
+                    gpu.MemoryBytes = ReadGpuMemory(sub);
 
-                    if (gpu.MemoryBytes <= 0 && sub.GetValue("MemorySize") is int mb && mb > 0)
+                    // 远程桌面 / 串流 / 虚拟显示器驱动也会注册成显示适配器，
+                    // 它们没有真实显存，列进「显卡」只会让人以为装了两块卡，直接不收。
+                    if (gpu.IsVirtual && gpu.MemoryBytes <= 0) continue;
+
+                    // 同一块卡在多个实例键里重复登记的情况，按名字去重
+                    if (result.Any(g => string.Equals(g.Name, gpu.Name, StringComparison.OrdinalIgnoreCase)))
                     {
-                        gpu.MemoryBytes = (long)mb * 1024 * 1024;
+                        continue;
                     }
 
                     result.Add(gpu);
-                    hardware?.Dispose();
                 }
             }
             catch (Exception ex)
@@ -213,7 +216,56 @@ namespace GameWall.Services
                 Logger.Error("枚举显卡失败", ex);
             }
 
-            return result;
+            // 真实显卡排前面，虚拟适配器垫底
+            return result.OrderBy(g => g.IsVirtual).ThenByDescending(g => g.MemoryBytes).ToList();
+        }
+
+        /// <summary>
+        /// 显存在注册表里有三种存法，逐个试：
+        /// 1. 同层的 HardwareInformation.qwMemorySize（REG_QWORD 或 8 字节 REG_BINARY）——新版 NVIDIA 驱动在这；
+        /// 2. HardwareInformation 子键下的 qwMemorySize；
+        /// 3. 同层 MemorySize（单位 MB，旧驱动）。
+        /// </summary>
+        private static long ReadGpuMemory(RegistryKey sub)
+        {
+            var direct = ReadQword(sub.GetValue("HardwareInformation.qwMemorySize"));
+            if (direct > 0) return direct;
+
+            using (var hardware = sub.OpenSubKey("HardwareInformation"))
+            {
+                var nested = ReadQword(hardware?.GetValue("qwMemorySize"));
+                if (nested > 0) return nested;
+            }
+
+            if (sub.GetValue("MemorySize") is int mb && mb > 0) return (long)mb * 1024 * 1024;
+            if (sub.GetValue("HardwareInformation.MemorySize") is byte[] mem && mem.Length >= 4)
+            {
+                var value = BitConverter.ToUInt32(mem, 0);
+                // 这个值有时是负数补码（如 -1048576），算下来是天文数字，直接丢掉
+                if (value > 0 && value < int.MaxValue) return value;
+            }
+
+            return 0;
+        }
+
+        private static long ReadQword(object? raw) => raw switch
+        {
+            long l => l > 0 ? l : 0,
+            int i => i > 0 ? i : 0,
+            byte[] bytes when bytes.Length == 8 => BitConverter.ToInt64(bytes, 0) is var v && v > 0 ? v : 0,
+            _ => 0,
+        };
+
+        /// <summary>远程桌面、串流、虚拟显示器一类的适配器。名字里带这些词基本可以确定不是真显卡。</summary>
+        private static bool IsVirtualAdapter(string name)
+        {
+            string[] marks =
+            {
+                "remote display", "remote desktop", "idddriver", "indirect display", "virtual display",
+                "basic display", "basic render", "parsec", "oray", "sunlogin", "gameviewer",
+                "todesk", "rustdesk", "anydesk", "teamviewer", "mirror driver", "displaylink",
+            };
+            return marks.Any(m => name.Contains(m, StringComparison.OrdinalIgnoreCase));
         }
 
         private static string FormatDriverDate(string? raw)
@@ -309,10 +361,12 @@ namespace GameWall.Services
                 if (!EnumDisplayDevices(null, i, ref device, 0)) break;
                 if ((device.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) == 0) continue;
 
+                // 这一层的 DeviceString 是「适配器」（显卡）名，显示器名要再往下枚举一层才拿得到。
+                var adapterName = device.DeviceString?.Trim() ?? string.Empty;
+
                 var info = new DisplayInfo
                 {
-                    Name = device.DeviceString?.Trim() ?? device.DeviceName,
-                    Adapter = device.DeviceName ?? string.Empty,
+                    Adapter = adapterName,
                     IsPrimary = (device.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0,
                 };
 
@@ -328,10 +382,40 @@ namespace GameWall.Services
                     info.BitsPerPixel = mode.dmBitsPerPel;
                 }
 
+                // 分辨率读不出来的条目（驱动没就绪、远程会话断开）整条丢掉：
+                // 界面上留着「未知」既占地方又让人以为哪里坏了。
+                if (!info.HasResolution) continue;
+
+                info.Name = ReadMonitorName(device.DeviceName);
+                if (string.IsNullOrWhiteSpace(info.Name))
+                {
+                    info.Name = info.IsPrimary ? "主显示器" : $"显示器 {list.Count + 1}";
+                }
+
                 list.Add(info);
             }
 
             return list.OrderByDescending(d => d.IsPrimary).ToList();
+        }
+
+        /// <summary>从「适配器 → 显示器」的第二层枚举里取显示器型号，比如「Generic PnP Monitor」。</summary>
+        private static string ReadMonitorName(string? adapterDeviceName)
+        {
+            if (string.IsNullOrEmpty(adapterDeviceName)) return string.Empty;
+            try
+            {
+                var monitor = new DISPLAY_DEVICE { cb = Marshal.SizeOf<DISPLAY_DEVICE>() };
+                if (EnumDisplayDevices(adapterDeviceName, 0, ref monitor, 0))
+                {
+                    return monitor.DeviceString?.Trim() ?? string.Empty;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("读取显示器型号失败", ex);
+            }
+
+            return string.Empty;
         }
 
         // ── 机型 / 系统 ──────────────────────────────────────
@@ -366,6 +450,13 @@ namespace GameWall.Services
                     var build = (os.GetValue("CurrentBuildNumber") as string)?.Trim() ?? string.Empty;
                     if (os.GetValue("UBR") is int ubr && ubr > 0) build = $"{build}.{ubr}";
                     info.OsBuild = build;
+
+                    // 注册表里的 ProductName 到 Windows 11 依然是「Windows 10 …」，
+                    // 微软为了兼容性一直没改。构建号 >= 22000 就说明其实是 11，这里纠正一下。
+                    if (int.TryParse(build.Split('.')[0], out var buildNo) && buildNo >= 22000)
+                    {
+                        info.OsName = info.OsName.Replace("Windows 10", "Windows 11");
+                    }
                 }
             }
 

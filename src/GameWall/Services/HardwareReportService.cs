@@ -37,18 +37,18 @@ namespace GameWall.Services
             Line($"单文件发布           {(AppInfo.IsSingleFileBuild ? "是" : "否（框架依赖版）")}");
 
             Section("处理器");
-            Line($"型号      {snapshot.Cpu.Name}");
+            if (!string.IsNullOrWhiteSpace(snapshot.Cpu.Name)) Line($"型号      {snapshot.Cpu.Name}");
             Line($"核心      {snapshot.Cpu.TopologyText}");
-            Line($"架构      {snapshot.Cpu.Architecture}");
+            if (!string.IsNullOrWhiteSpace(snapshot.Cpu.Architecture)) Line($"架构      {snapshot.Cpu.Architecture}");
             if (snapshot.Cpu.BaseClockMhz > 0) Line($"基准频率  {snapshot.Cpu.BaseClockMhz} MHz");
 
             Section("显卡");
             if (snapshot.Gpus.Count == 0) Line("未能读取到显卡信息");
             foreach (var gpu in snapshot.Gpus)
             {
-                Line($"型号      {gpu.Name}");
+                Line($"型号      {gpu.Name}{(gpu.IsVirtual ? "（虚拟 / 远程显示适配器）" : string.Empty)}");
                 if (!string.IsNullOrEmpty(gpu.Vendor)) Line($"厂商      {gpu.Vendor}");
-                Line($"显存      {gpu.MemoryText}");
+                if (gpu.HasMemory) Line($"显存      {gpu.MemoryText}");
                 if (!string.IsNullOrEmpty(gpu.DriverVersion)) Line($"驱动版本  {gpu.DriverVersion}");
                 if (!string.IsNullOrEmpty(gpu.DriverDate)) Line($"驱动日期  {gpu.DriverDate}");
                 Line();
@@ -56,8 +56,12 @@ namespace GameWall.Services
 
             Section("内存");
             Line($"容量      {snapshot.Memory.TotalText}");
-            Line($"已用      {snapshot.Memory.UsedText}（{snapshot.Memory.LoadPercent}%）");
-            Line($"可用      {snapshot.Memory.AvailableText}");
+            if (snapshot.Memory.TotalBytes > 0)
+            {
+                Line($"已用      {snapshot.Memory.UsedText}（{snapshot.Memory.LoadPercent}%）");
+                Line($"可用      {snapshot.Memory.AvailableText}");
+            }
+
             if (snapshot.Memory.PageFileTotalBytes > 0)
             {
                 Line($"页面文件  {GpuInfo.FormatSize(snapshot.Memory.PageFileTotalBytes - snapshot.Memory.PageFileAvailableBytes)}" +
@@ -78,26 +82,32 @@ namespace GameWall.Services
             foreach (var display in snapshot.Displays)
             {
                 Line($"{display.Name}{(display.IsPrimary ? "（主屏）" : string.Empty)}");
-                Line($"   {display.ResolutionText}  {display.BitsPerPixel} bit");
+                var line = display.ResolutionText;
+                if (display.BitsPerPixel > 0) line += $"  {display.BitsPerPixel} bit";
+                if (!string.IsNullOrWhiteSpace(line)) Line("   " + line.Trim());
             }
 
             Section("主板与系统");
-            Line($"机型      {snapshot.Machine.MachineText}");
+            if (!string.IsNullOrWhiteSpace(snapshot.Machine.MachineText)) Line($"机型      {snapshot.Machine.MachineText}");
             if (!string.IsNullOrEmpty(snapshot.Machine.Board)) Line($"主板      {snapshot.Machine.Board}");
             if (!string.IsNullOrEmpty(snapshot.Machine.BiosVersion))
             {
                 Line($"BIOS      {snapshot.Machine.BiosVersion}{(string.IsNullOrEmpty(snapshot.Machine.BiosDate) ? string.Empty : " / " + snapshot.Machine.BiosDate)}");
             }
-            Line($"系统      {snapshot.Machine.OsName} {snapshot.Machine.OsVersion}（{snapshot.Machine.OsBuild}）");
-            Line($"计算机名  {snapshot.Machine.ComputerName}");
+
+            Line($"系统      {snapshot.Machine.OsName} {snapshot.Machine.OsVersion}（{snapshot.Machine.OsBuild}）".Replace("（）", string.Empty));
+            if (!string.IsNullOrWhiteSpace(snapshot.Machine.ComputerName)) Line($"计算机名  {snapshot.Machine.ComputerName}");
 
             Section("网络");
             if (snapshot.Networks.Count == 0) Line("未能读取到网卡信息");
             foreach (var nic in snapshot.Networks)
             {
                 Line($"{nic.Name}  [{nic.Type}]  {(nic.IsUp ? "已连接" : "未连接")}");
-                Line($"   {nic.Description}");
-                Line($"   MAC {nic.MacAddress}   链路 {nic.SpeedText}");
+                if (!string.IsNullOrWhiteSpace(nic.Description)) Line($"   {nic.Description}");
+                var extra = new List<string>();
+                if (!string.IsNullOrEmpty(nic.MacAddress)) extra.Add("MAC " + nic.MacAddress);
+                if (!string.IsNullOrEmpty(nic.SpeedText)) extra.Add("链路 " + nic.SpeedText);
+                if (extra.Count > 0) Line("   " + string.Join("   ", extra));
             }
 
             Section("电源方案");

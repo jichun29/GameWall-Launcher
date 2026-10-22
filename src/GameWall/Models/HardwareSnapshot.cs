@@ -21,7 +21,7 @@ namespace GameWall.Models
 
     public sealed class CpuInfo
     {
-        public string Name { get; set; } = "未知处理器";
+        public string Name { get; set; } = string.Empty;
         public int PhysicalCores { get; set; }
         public int LogicalProcessors { get; set; }
         public int BaseClockMhz { get; set; }
@@ -36,15 +36,22 @@ namespace GameWall.Models
 
     public sealed class GpuInfo
     {
-        public string Name { get; set; } = "未知显卡";
+        public string Name { get; set; } = string.Empty;
         public string DriverVersion { get; set; } = string.Empty;
         public string DriverDate { get; set; } = string.Empty;
         public long MemoryBytes { get; set; }
         public string Vendor { get; set; } = string.Empty;
 
-        public string MemoryText => MemoryBytes > 0
-            ? FormatSize(MemoryBytes)
-            : "未知";
+        /// <summary>
+        /// 虚拟 / 远程显示适配器（Remote Display、IddDriver、RayLink、GameViewer 之类）。
+        /// 它们不是真的显卡，显存也读不出来，列进「显卡」里只会让人困惑。
+        /// </summary>
+        public bool IsVirtual { get; set; }
+
+        /// <summary>显存文本。读不到就给空串，界面据此整行不显示（不要写「未知」）。</summary>
+        public string MemoryText => MemoryBytes > 0 ? FormatSize(MemoryBytes) : string.Empty;
+
+        public bool HasMemory => MemoryBytes > 0;
 
         internal static string FormatSize(long bytes)
         {
@@ -107,8 +114,11 @@ namespace GameWall.Models
         public int BitsPerPixel { get; set; }
         public bool IsPrimary { get; set; }
 
+        /// <summary>分辨率读到了才给出文本，读不到返回空串（界面整行不显示，不写「未知」）。</summary>
         public string ResolutionText =>
-            Width > 0 ? $"{Width} × {Height} @ {RefreshRate} Hz" : "未知";
+            Width > 0 && Height > 0 ? $"{Width} × {Height} @ {RefreshRate} Hz" : string.Empty;
+
+        public bool HasResolution => Width > 0 && Height > 0;
     }
 
     public sealed class MachineInfo
@@ -123,8 +133,34 @@ namespace GameWall.Models
         public string OsBuild { get; set; } = string.Empty;
         public string ComputerName { get; set; } = string.Empty;
 
-        public string MachineText =>
-            string.IsNullOrWhiteSpace(Model) ? "未知机型" : $"{Manufacturer} {Model}".Trim();
+        /// <summary>机型文本，读不到返回空串（界面整行不显示，不写「未知机型」）。</summary>
+        public string MachineText
+        {
+            get
+            {
+                // OEM 出厂没填机型的机器，SMBIOS 里会留一串占位符，
+                // 直接显示「ASUS System Product Name」比不显示还难看，这里当没读到。
+                var model = PlaceholderModels.Any(p =>
+                    string.Equals(Model?.Trim(), p, StringComparison.OrdinalIgnoreCase))
+                    ? string.Empty
+                    : Model ?? string.Empty;
+
+                return $"{Manufacturer} {model}".Trim();
+            }
+        }
+
+        private static readonly string[] PlaceholderModels =
+        {
+            "System Product Name",
+            "System Version",
+            "To be filled by O.E.M.",
+            "To Be Filled By O.E.M.",
+            "Default string",
+            "Default String",
+            "OEM",
+            "Unknown",
+            "Not Applicable",
+        };
     }
 
     public sealed class NetworkInfo
@@ -136,9 +172,8 @@ namespace GameWall.Models
         public long SpeedBps { get; set; }
         public bool IsUp { get; set; }
 
-        public string SpeedText => SpeedBps > 0
-            ? $"{SpeedBps / 1_000_000d:0.#} Mbps"
-            : "未知";
+        /// <summary>链路速率。读不到返回空串，由调用方决定整段省略。</summary>
+        public string SpeedText => SpeedBps > 0 ? $"{SpeedBps / 1_000_000d:0.#} Mbps" : string.Empty;
     }
 
     /// <summary>

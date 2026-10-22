@@ -167,11 +167,15 @@ namespace GameWall.ViewModels
         {
             Title = title;
             Glyph = glyph;
+            HasContent = true;
         }
 
         public string Title { get; }
         public string Glyph { get; }
         public ObservableCollection<HardwareRow> Rows { get; } = new();
+
+        /// <summary>整块都没读到信息时为 false，界面上直接不画这个分区。</summary>
+        public bool HasContent { get; set; }
     }
 
     /// <summary>
@@ -603,110 +607,115 @@ namespace GameWall.ViewModels
             ApplyFilter();
         }
 
+        /// <summary>
+        /// 把硬件快照铺成分区。约定：值为空串的行直接不加 —— 截图里那些「未知」既没信息量，
+        /// 又会让人误以为检测失败。整块都读不到的，只在分区里留一条状态说明。
+        /// </summary>
         private void BuildSections()
         {
             Sections.Clear();
 
             var cpu = new HardwareSection("处理器", "🧠");
-            cpu.Rows.Add(new HardwareRow("型号", _snapshot.Cpu.Name));
-            cpu.Rows.Add(new HardwareRow("核心", _snapshot.Cpu.TopologyText));
-            cpu.Rows.Add(new HardwareRow("架构", _snapshot.Cpu.Architecture));
+            AddRow(cpu, "型号", _snapshot.Cpu.Name);
+            AddRow(cpu, "核心", _snapshot.Cpu.TopologyText);
+            AddRow(cpu, "架构", _snapshot.Cpu.Architecture);
             if (_snapshot.Cpu.BaseClockMhz > 0)
             {
-                cpu.Rows.Add(new HardwareRow("基准频率", $"{_snapshot.Cpu.BaseClockMhz} MHz"));
+                AddRow(cpu, "基准频率", $"{_snapshot.Cpu.BaseClockMhz} MHz");
             }
-            Sections.Add(cpu);
+
+            AddSection(cpu);
 
             var gpu = new HardwareSection("显卡", "🎮");
-            if (_snapshot.Gpus.Count == 0)
+            var realGpus = _snapshot.Gpus.Where(g => !g.IsVirtual).ToList();
+            var virtualGpus = _snapshot.Gpus.Where(g => g.IsVirtual).ToList();
+            foreach (var item in realGpus.Concat(virtualGpus))
             {
-                gpu.Rows.Add(new HardwareRow("状态", "未能读取到显卡信息"));
-            }
-            else
-            {
-                foreach (var item in _snapshot.Gpus)
+                AddRow(gpu, "型号", item.Name);
+                AddRow(gpu, "显存", item.MemoryText);
+                if (!string.IsNullOrEmpty(item.DriverVersion))
                 {
-                    gpu.Rows.Add(new HardwareRow("型号", item.Name));
-                    gpu.Rows.Add(new HardwareRow("显存", item.MemoryText));
-                    if (!string.IsNullOrEmpty(item.DriverVersion))
-                    {
-                        var date = string.IsNullOrEmpty(item.DriverDate) ? string.Empty : $" / {item.DriverDate}";
-                        gpu.Rows.Add(new HardwareRow("驱动", item.DriverVersion + date));
-                    }
+                    var date = string.IsNullOrEmpty(item.DriverDate) ? string.Empty : $" / {item.DriverDate}";
+                    AddRow(gpu, "驱动", item.DriverVersion + date);
                 }
             }
-            Sections.Add(gpu);
+
+            AddSection(gpu, "未能读取到显卡信息");
 
             var memory = new HardwareSection("内存", "💾");
-            memory.Rows.Add(new HardwareRow("容量", _snapshot.Memory.TotalText));
-            memory.Rows.Add(new HardwareRow("已用", $"{_snapshot.Memory.UsedText}（{_snapshot.Memory.LoadPercent}%）"));
-            memory.Rows.Add(new HardwareRow("可用", _snapshot.Memory.AvailableText));
-            Sections.Add(memory);
+            AddRow(memory, "容量", _snapshot.Memory.TotalText);
+            if (_snapshot.Memory.TotalBytes > 0)
+            {
+                AddRow(memory, "已用", $"{_snapshot.Memory.UsedText}（{_snapshot.Memory.LoadPercent}%）");
+                AddRow(memory, "可用", _snapshot.Memory.AvailableText);
+            }
+
+            AddSection(memory);
 
             var disks = new HardwareSection("磁盘", "🗄");
-            if (_snapshot.Disks.Count == 0)
+            foreach (var disk in _snapshot.Disks)
             {
-                disks.Rows.Add(new HardwareRow("状态", "未能读取到磁盘信息"));
+                var label = string.IsNullOrWhiteSpace(disk.Label) ? disk.DriveType : $"{disk.DriveType} · {disk.Label}";
+                AddRow(disks, $"{disk.Drive}（{label}）", disk.UsageText, $"已用 {disk.UsedPercent:0}%");
             }
-            else
-            {
-                foreach (var disk in _snapshot.Disks)
-                {
-                    var label = string.IsNullOrWhiteSpace(disk.Label) ? disk.DriveType : $"{disk.DriveType} · {disk.Label}";
-                    disks.Rows.Add(new HardwareRow($"{disk.Drive}（{label}）", disk.UsageText, $"已用 {disk.UsedPercent:0}%"));
-                }
-            }
-            Sections.Add(disks);
+
+            AddSection(disks, "未能读取到磁盘信息");
 
             var displays = new HardwareSection("显示器", "🖥");
-            if (_snapshot.Displays.Count == 0)
+            foreach (var display in _snapshot.Displays)
             {
-                displays.Rows.Add(new HardwareRow("状态", "未能读取到显示器信息"));
+                AddRow(displays,
+                    display.Name + (display.IsPrimary ? "（主屏）" : string.Empty),
+                    display.ResolutionText,
+                    display.BitsPerPixel > 0 ? $"{display.BitsPerPixel} bit" : null);
             }
-            else
-            {
-                foreach (var display in _snapshot.Displays)
-                {
-                    displays.Rows.Add(new HardwareRow(
-                        display.Name + (display.IsPrimary ? "（主屏）" : string.Empty),
-                        display.ResolutionText,
-                        $"{display.BitsPerPixel} bit"));
-                }
-            }
-            Sections.Add(displays);
+
+            AddSection(displays, "未能读取到显示器信息");
 
             var machine = new HardwareSection("主板与系统", "🧩");
-            machine.Rows.Add(new HardwareRow("机型", _snapshot.Machine.MachineText));
-            if (!string.IsNullOrEmpty(_snapshot.Machine.Board))
-            {
-                machine.Rows.Add(new HardwareRow("主板", _snapshot.Machine.Board));
-            }
-            if (!string.IsNullOrEmpty(_snapshot.Machine.BiosVersion))
-            {
-                machine.Rows.Add(new HardwareRow("BIOS", _snapshot.Machine.BiosVersion,
-                    string.IsNullOrEmpty(_snapshot.Machine.BiosDate) ? null : _snapshot.Machine.BiosDate));
-            }
-            machine.Rows.Add(new HardwareRow("系统",
-                $"{_snapshot.Machine.OsName} {_snapshot.Machine.OsVersion}".Trim()));
-            machine.Rows.Add(new HardwareRow("内部版本", _snapshot.Machine.OsBuild));
-            Sections.Add(machine);
+            AddRow(machine, "机型", _snapshot.Machine.MachineText);
+            AddRow(machine, "主板", _snapshot.Machine.Board);
+            AddRow(machine, "BIOS", _snapshot.Machine.BiosVersion,
+                string.IsNullOrEmpty(_snapshot.Machine.BiosDate) ? null : _snapshot.Machine.BiosDate);
+            AddRow(machine, "系统", $"{_snapshot.Machine.OsName} {_snapshot.Machine.OsVersion}".Trim());
+            AddRow(machine, "内部版本", _snapshot.Machine.OsBuild);
+            AddSection(machine);
 
             var network = new HardwareSection("网络", "🌐");
-            if (_snapshot.Networks.Count == 0)
+            foreach (var nic in _snapshot.Networks)
             {
-                network.Rows.Add(new HardwareRow("状态", "未能读取到网卡信息"));
+                var speed = string.IsNullOrEmpty(nic.SpeedText) ? string.Empty : $" · {nic.SpeedText}";
+                AddRow(network,
+                    $"{nic.Name}（{nic.Type}）",
+                    nic.IsUp ? $"已连接{speed}" : "未连接",
+                    string.IsNullOrEmpty(nic.MacAddress) ? null : "MAC " + nic.MacAddress);
             }
-            else
+
+            AddSection(network, "未能读取到网卡信息");
+        }
+
+        /// <summary>空值不加行。所有硬件行都从这里进，避免漏判。</summary>
+        private static void AddRow(HardwareSection section, string label, string? value, string? hint = null)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            section.Rows.Add(new HardwareRow(label, value!, hint));
+        }
+
+        /// <summary>分区里一行都没有时，放一条状态说明，别留一个空壳标题。连说明都没有就整块不收。</summary>
+        private void AddSection(HardwareSection section, string emptyHint = "")
+        {
+            if (section.Rows.Count == 0)
             {
-                foreach (var nic in _snapshot.Networks)
+                if (string.IsNullOrEmpty(emptyHint))
                 {
-                    network.Rows.Add(new HardwareRow(
-                        $"{nic.Name}（{nic.Type}）",
-                        nic.IsUp ? $"已连接 · {nic.SpeedText}" : "未连接",
-                        string.IsNullOrEmpty(nic.MacAddress) ? null : "MAC " + nic.MacAddress));
+                    return;
                 }
+
+                section.Rows.Add(new HardwareRow("状态", emptyHint));
             }
-            Sections.Add(network);
+
+            section.HasContent = true;
+            Sections.Add(section);
         }
 
         private void BuildAdvices()
