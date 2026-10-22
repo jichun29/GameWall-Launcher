@@ -32,6 +32,23 @@ public sealed class SettingsService
         // 主题三态归一：System / Dark / Light，非法值回退深色（默认）
         loaded.Theme = ThemeModes.Normalize(loaded.Theme);
 
+        // 视图迁移：Wall(0) 是 1.5 就删掉的大图墙，老配置读进来一律归到卡片式；
+        // 其余非法值也按默认卡片式处理。
+        if (!Enum.IsDefined(typeof(Models.WallViewMode), loaded.ViewMode))
+        {
+            loaded.ViewMode = Models.WallViewMode.Card;
+        }
+        else if (loaded.ViewMode == Models.WallViewMode.Wall)
+        {
+            loaded.ViewMode = Models.WallViewMode.Card;
+        }
+
+        // 更新源只认内置的几个名字，写错了自动回退 auto
+        if (!UpdateService.IsKnownSource(loaded.UpdateSource))
+        {
+            loaded.UpdateSource = UpdateService.SourceAuto;
+        }
+
         // 强调色留空 = 跟随主题默认色（深色 #3DDBFF / 浅色 #1668E3），
         // 只有用户明确填了非法值才清空回「跟随主题」
         if (!string.IsNullOrWhiteSpace(loaded.AccentColor) && !IsValidHex(loaded.AccentColor))

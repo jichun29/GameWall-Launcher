@@ -1,4 +1,4 @@
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
@@ -110,6 +110,19 @@
     <Color x:Key="Color.Glow">#FF3DDBFF</Color>
     <sys:Double x:Key="Double.GlowOpacity">0.55</sys:Double>
     <sys:Double x:Key="Double.GlowBlur">18</sys:Double>
+
+    <!-- Hero 头图与光斑。
+         注意：GradientStop.Color 不能用 DynamicResource 绑到 Color 资源
+         （Freezable 里的 DynamicResource 会抛 "not a valid value for property Color"），
+         所以这里直接把整个渐变定义成画刷资源。 -->
+    <LinearGradientBrush x:Key="Brush.HeroGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#1B2A52" Offset="0" />
+        <GradientStop Color="#0A0D14" Offset="1" />
+    </LinearGradientBrush>
+    <RadialGradientBrush x:Key="Brush.GlowSpot">
+        <GradientStop Color="#FF3DDBFF" Offset="0" />
+        <GradientStop Color="#003DDBFF" Offset="1" />
+    </RadialGradientBrush>
 
     <!-- ═════════ 首次运行引导的头图 ═════════ -->
 

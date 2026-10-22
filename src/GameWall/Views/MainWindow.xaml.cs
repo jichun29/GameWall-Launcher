@@ -52,6 +52,11 @@ public partial class MainWindow : Window
         _vm.RequestEdit += card => EditGame(card);
         _vm.RequestSettings += () => OpenSettings();
         _vm.RequestImport += () => ImportFromPlatforms();
+        _vm.RequestAbout += () => ShowAbout();
+
+        // 检查更新的结果统一交给主窗口处理：用户主动点的要弹窗，
+        // 后台自动检查的只有在真发现新版本时才弹（顶栏提示条另外由绑定驱动）
+        _vm.UpdateFoundHandler = OnUpdateCheckedAsync;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -88,6 +93,80 @@ public partial class MainWindow : Window
 
         // 后台预热：补齐缺失的封面 / 图标，不阻塞首屏
         _ = WarmUpVisualsAsync();
+
+        // 自动检查更新（每天最多一次），等界面彻底起来之后再发请求
+        _ = AutoCheckUpdateAsync();
+    }
+
+    // ══════════════ 更新 ══════════════
+
+    /// <summary>
+    /// 启动时的自动检查。一天只查一次，避免每次开软件都去打 GitHub。
+    /// </summary>
+    private async Task AutoCheckUpdateAsync()
+    {
+        try
+        {
+            if (!_vm.Settings.AutoCheckUpdate)
+            {
+                return;
+            }
+
+            var last = _vm.Settings.LastCheckAt;
+            if (last is { } stamp && (DateTime.Now - stamp).TotalHours < 24)
+            {
+                return;
+            }
+
+            // 让首屏先画完再联网
+            await Task.Delay(1500);
+
+            await _vm.CheckUpdateAsync(interactive: false);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("自动检查更新失败", ex);
+        }
+    }
+
+    /// <summary>检查更新回来的统一出口。</summary>
+    private Task OnUpdateCheckedAsync(UpdateCheckResult result)
+    {
+        // 后台静默检查、又没新版本 —— 什么都不做，别打扰用户
+        if (!result.Success)
+        {
+            if (!this.IsLoaded)
+            {
+                return Task.CompletedTask;
+            }
+
+            Logger.Info("检查更新失败：" + result.Message);
+            return Task.CompletedTask;
+        }
+
+        if (result.HasUpdate)
+        {
+            Logger.Info($"发现新版本 v{result.Info!.Version}（当前 {AppInfo.VersionLabel}）");
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void ShowUpdate_Click(object sender, RoutedEventArgs e) => ShowAbout();
+
+    private void DismissUpdate_Click(object sender, RoutedEventArgs e) => _vm.DismissUpdate();
+
+    private void ShowAbout()
+    {
+        try
+        {
+            var about = new AboutWindow { Owner = this };
+            about.Show();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("打开关于窗口失败", ex);
+        }
     }
 
     private async Task WarmUpVisualsAsync()

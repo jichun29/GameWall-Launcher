@@ -6,7 +6,7 @@
 
 纯本地工具，不联网、不上传任何数据，所有配置都存在 `%AppData%\GameWall\` 下。
 
-![大图墙视图](docs/screenshots/dark-wall.png)
+![卡片式视图](docs/screenshots/dark-card.png)
 
 ---
 
@@ -18,11 +18,13 @@
 - [系统要求](#系统要求)
 - [安装与运行](#安装与运行)
 - [使用说明](#使用说明)
+- [检查更新](#检查更新)
 - [数据存储](#数据存储)
 - [从源码编译](#从源码编译)
 - [项目结构](#项目结构)
 - [开发路线](#开发路线)
 - [常见问题](#常见问题)
+- [关于作者](#关于作者)
 - [许可证](#许可证)
 
 ---
@@ -31,7 +33,8 @@
 
 ### 展示
 
-- **三种视图**：大图墙（默认）/ 列表 / 紧凑，顶栏一键切换，选择会被记住
+- **两种视图**：卡片式（默认，像 Steam 游戏库）/ 列表式，顶栏一键切换，选择会被记住
+- **卡片动效**：悬停时卡片轻微放大（1.032×）并浮起外发光、播放键回弹展开；选中时卡片描边高亮 + 呼吸光晕脉冲
 - **封面卡片**：封面图 + 游戏名 + 标签胶囊 + 启动次数，悬停高亮描边
 - **封面与图标分开处理**：自己指定了封面就满铺；没封面但有 exe 图标时居中当徽标摆（32×32 的小图标不会被拉伸成黑块）；两者都没有才用按名字哈希生成的渐变底 + 首字
 - **Steam 游戏自动取官方封面**：从 Steam 自己的 `appcache\librarycache` 里找 600×900 竖版封面，纯本地读取，不联网
@@ -80,25 +83,25 @@
 
 ## 界面预览
 
-### 深色（默认）
+### 深色（默认，卡片式）
 
-![大图墙](docs/screenshots/dark-wall.png)
+![卡片式](docs/screenshots/dark-card.png)
 
 ### 浅色
 
-![浅色大图墙](docs/screenshots/light-wall.png)
+![浅色卡片式](docs/screenshots/light-card.png)
 
-### 列表模式
+### 列表式
 
-![列表模式](docs/screenshots/dark-list.png)
+![列表式](docs/screenshots/dark-list.png)
 
-### 紧凑模式
-
-![紧凑模式](docs/screenshots/dark-compact.png)
-
-### 设置面板（含「跟随系统」主题）
+### 设置面板（含「跟随系统」主题、更新源）
 
 ![设置](docs/screenshots/dark-dialog-settings.png)
+
+### 关于（作者信息与检查更新）
+
+![关于](docs/screenshots/dark-dialog-about.png)
 
 ### 首次运行引导
 
@@ -220,13 +223,28 @@ python tools/make-logo.py
 
 ### 设置项
 
-**外观**：主题（深色 / 浅色 / 跟随系统）、强调色（可跟随主题）、卡片宽度、是否显示文字标签、背景图、背景色（可跟随主题）、背景遮罩透明度
+**外观**：主题（深色 / 浅色 / 跟随系统）、强调色（可跟随主题）、卡片宽度、是否显示文字标签、卡片动效开关、背景图、背景色（可跟随主题）、背景遮罩透明度
 
 **窗口与行为**：置顶、启动即全屏、最小化到托盘、开机自启、移除前确认、启动游戏后最小化自己
 
 **扫描目录**：增删扫描根目录、递归深度（1–8）、最小 exe 体积
 
-**数据与关于**：打开数据目录、恢复全部默认设置
+**更新**：启动时自动检查（每天最多一次）、更新源（自动 / GitHub 直连 / GHProxy / ghfast.top / gh-proxy.com / moeyy / gitmirror）、立即检查
+
+**数据与关于**：打开数据目录、关于 GameWall（作者信息与检查更新）、恢复全部默认设置
+
+---
+
+## 检查更新
+
+「关于 GameWall」窗口和设置面板里都能手动检查更新；开启「启动时自动检查」后，程序每天最多自动查一次（记在 `settings.json` 的 `LastCheckAt`）。
+
+- **版本比较**只认 GitHub Releases 上的 `tag_name`（形如 `v1.5.1`），比本地 `AssemblyInformationalVersion` 高才提示
+- **下载**走同一套源列表，逐个试到成功为止；下完先校验字节数和 `sha256`（GitHub 会回 `digest`），一致才落地
+- **安装**：把新版下到临时目录 → 拷到程序同目录 → 生成一个等待旧进程退出的 `.cmd` → 覆盖并重启。只对**单文件版**生效（绿色版结构变了没法热替换，会提示你手动替换）
+- **加速源**：国内直连 `api.github.com` 有时会断，所以内置了 `ghfast.top`、`ghproxy.net`、`gh-proxy.com`、`github.moeyy.xyz`、`hub.gitmirror.com` 五个镜像，「自动」模式会从直连开始挨个试
+
+> 版本号规则由 `tools/release.ps1` 守着：**同一天最多出一个大版本**，当天之后的所有更新只递增第三位（1.5 → 1.5.1 → 1.5.2），第二天才会跳到 1.6。发版记录存在 `tools/release-history.json`。
 
 ---
 
@@ -345,6 +363,8 @@ GameWall/
 │  │  ├─ AutoStartService.cs  # 开机自启注册表操作
 │  │  ├─ SystemThemeWatcher.cs# 读注册表 + 监听系统深浅色切换
 │  │  ├─ ThemeManager.cs      # 主题与强调色热切换
+│  │  ├─ AppInfo.cs           # 作者 / 仓库地址 / 版本号等元信息
+│  │  ├─ UpdateService.cs     # 检查更新、多镜像下载、SHA256 校验、自替换重启
 │  │  └─ Logger.cs            # 简易滚动日志
 │  ├─ ViewModels/
 │  │  ├─ ObservableObject.cs  # INotifyPropertyChanged 基类
@@ -352,9 +372,10 @@ GameWall/
 │  │  ├─ GameCardViewModel.cs # 单张卡片的展示状态
 │  │  └─ MainViewModel.cs     # 主界面状态、筛选、命令
 │  ├─ Views/
-│  │  ├─ MainWindow.xaml(.cs)        # 主窗口：三视图 + 拖拽 + 拖放/粘贴导入
+│  │  ├─ MainWindow.xaml(.cs)        # 主窗口：两种视图 + 拖拽 + 拖放/粘贴导入 + 更新提示条
 │  │  ├─ FirstRunWindow.xaml(.cs)    # 首次运行引导
 │  │  └─ Dialogs/
+│  │     ├─ AboutWindow.xaml(.cs)    # 关于：作者信息 + 检查更新
 │  │     ├─ GameEditWindow.xaml(.cs) # 编辑游戏信息
 │  │     ├─ SearchAddWindow.xaml(.cs)# 搜索添加
 │  │     ├─ ImportWindow.xaml(.cs)   # 平台导入
@@ -380,6 +401,8 @@ GameWall/
 │  ├─ seed-demo.ps1           # 造演示数据
 │  ├─ smoke-test.ps1          # UIA 冒烟测试（切视图 / 搜索 / 收藏筛选）
 │  ├─ make-logo.py            # 生成图标：ico（10 尺寸）+ PNG（Pillow）
+│  ├─ release.ps1             # 版本号规则 + 构建 + 记录（同一天只递增第三位）
+│  ├─ release-history.json    # 发版记录（日期 / 版本 / 大小 / SHA256）
 │  ├─ upload-asset.ps1        # 把构建产物传到 release（uploads.github.com）
 │  └─ push-files-api.ps1      # github.com 不通时改走 api.github.com 提交
 └─ docs/screenshots/          # README 用图
@@ -401,6 +424,8 @@ GameWall/
       封面与图标分开处理；从 Steam 本地缓存取官方封面
 - [x] **1.5**：全新暗黑霓虹视觉（深空黑 + 电光青 + 外发光）、控件尺寸与留白统一、
       五个对话框重做、应用图标改为几何绘制的大写字母 G
+- [x] **1.5.1**：视图精简为卡片式 / 列表式两种（卡片带悬停放大与选中呼吸光效）、
+      新增「关于 GameWall」窗口与作者信息、内置检查更新（GitHub 版本号 + 国内镜像加速 + SHA256 校验 + 自替换重启）
 - [ ] 后续可做：多语言、游戏时长统计（需要注入/进程监控）、手柄导航、
       云同步（用户自己的同步盘）、截图预览墙、按最近游玩自动排序
 
@@ -447,6 +472,21 @@ GameWall 读的是 `HKCU\...\Themes\Personalize\AppsUseLightTheme`（「应用�
 
 ---
 
+## 关于作者
+
+| | |
+| --- | --- |
+| 作者 | 季春二九 |
+| GitHub | [@jichun29](https://github.com/jichun29) |
+| 项目主页 | [jichun29/GameWall-Launcher](https://github.com/jichun29/GameWall-Launcher) |
+| 问题反馈 | [Issues](https://github.com/jichun29/GameWall-Launcher/issues) |
+
+程序内的「关于 GameWall」窗口同样展示了作者信息、版本号、许可证与检查更新入口。
+
+---
+
 ## 许可证
 
 MIT License，详见 [LICENSE](LICENSE)。
+
+Copyright (c) 2026 季春二九 (jichun29)

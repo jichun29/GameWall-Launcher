@@ -77,22 +77,18 @@ function First-CardTitle($cards) {
 
 $total = (Get-Cards).Count
 if ($total -eq 0) { Fail "一张卡片都没渲染出来" }
-Ok "大图墙渲染 $total 张卡片"
+Ok "卡片式渲染 $total 张卡片"
 
+# 两种视图：▤ 卡片式（默认）、☰ 列表式
 Invoke-El (Get-By-Name "☰") "列表按钮"
 $n = (Get-Cards).Count
 if ($n -ne $total) { Fail "列表模式卡片数 $n != $total" }
-Ok "列表模式 $n 张"
+Ok "列表式 $n 张"
 
-Invoke-El (Get-By-Name "▤") "紧凑按钮"
+Invoke-El (Get-By-Name "▤") "卡片式按钮"
 $n = (Get-Cards).Count
-if ($n -ne $total) { Fail "紧凑模式卡片数 $n != $total" }
-Ok "紧凑模式 $n 张"
-
-Invoke-El (Get-By-Name "▦") "大图墙按钮"
-$n = (Get-Cards).Count
-if ($n -ne $total) { Fail "切回大图墙后卡片数 $n != $total" }
-Ok "切回大图墙 $n 张"
+if ($n -ne $total) { Fail "切回卡片式后卡片数 $n != $total" }
+Ok "切回卡片式 $n 张"
 
 # 搜索过滤：按卡片名的一部分过滤
 $searchCond = New-Object System.Windows.Automation.PropertyCondition(

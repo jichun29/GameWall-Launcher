@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using GameWall.Models;
@@ -53,6 +54,7 @@ public partial class SettingsWindow : Window
         CardWidthSlider.Value = _working.CardWidth;
         CardWidthText.Text = $"{_working.CardWidth:0} px";
         ShowLabelsBox.IsChecked = _working.ShowLabels;
+        CardAnimationsBox.IsChecked = _working.EnableCardAnimations;
 
         BackgroundPathBox.Text = _working.BackgroundImagePath;
         BgOpacitySlider.Value = _working.BackgroundImageOpacity;
@@ -73,6 +75,29 @@ public partial class SettingsWindow : Window
         DepthText.Text = $"{_working.ScanDepth} 层";
 
         DataPathText.Text = "数据目录：" + AppPaths.Root;
+
+        // 更新区：源下拉 + 自动检查开关 + 状态文案
+        AutoCheckUpdateBox.IsChecked = _working.AutoCheckUpdate;
+
+        UpdateSourceBox.Items.Clear();
+        var selectedIndex = 0;
+        var i = 0;
+        foreach (var (key, display) in UpdateService.SourceOptions)
+        {
+            UpdateSourceBox.Items.Add(new ComboBoxItem { Content = display, Tag = key });
+            if (string.Equals(key, _working.UpdateSource, StringComparison.OrdinalIgnoreCase))
+            {
+                selectedIndex = i;
+            }
+
+            i++;
+        }
+
+        UpdateSourceBox.SelectedIndex = selectedIndex;
+
+        UpdateHintText.Text = _working.LastCheckAt is { } last
+            ? $"当前版本 {AppInfo.VersionLabel}，上次检查：{last:yyyy-MM-dd HH:mm}。"
+            : $"当前版本 {AppInfo.VersionLabel}，还没有检查过更新。";
 
         UpdateSystemThemeHint();
     }
@@ -410,11 +435,99 @@ public partial class SettingsWindow : Window
         LivePreview();
     }
 
+    // ══════════════ 更新 ══════════════
+
+    private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        CheckUpdateButton.IsEnabled = false;
+        var original = CheckUpdateButton.Content;
+        CheckUpdateButton.Content = "检查中…";
+
+        try
+        {
+            var source = (UpdateSourceBox.SelectedItem as ComboBoxItem)?.Tag as string;
+            var result = await UpdateService.CheckAsync(source);
+
+            if (!result.Success)
+            {
+                UpdateHintText.Text = "检查失败：" + result.Message;
+                MessageBox.Show(this, "没能从 GitHub 拿到版本信息。\r\n\r\n" + result.Message
+                        + "\r\n\r\n国内网络可以换一个下载源再试。",
+                    "GameWall", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            _working.LastCheckAt = DateTime.Now;
+            UpdateHintText.Text = result.HasUpdate
+                ? $"发现新版本 v{result.Info!.Version}（当前 {AppInfo.VersionLabel}），去「关于 GameWall」里下载。"
+                : $"已经是最新版本 {AppInfo.VersionLabel}，上次检查：{DateTime.Now:yyyy-MM-dd HH:mm}。";
+
+            if (result.HasUpdate)
+            {
+                var open = MessageBox.Show(this,
+                    $"发现新版本 v{result.Info!.Version}（当前 {AppInfo.VersionLabel}）。\r\n\r\n要现在打开「关于」页面下载吗？",
+                    "GameWall", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                if (open == MessageBoxResult.Yes)
+                {
+                    OpenAboutWindow(result);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("设置窗口检查更新失败", ex);
+            UpdateHintText.Text = "检查更新出错：" + ex.Message;
+        }
+        finally
+        {
+            CheckUpdateButton.Content = original;
+            CheckUpdateButton.IsEnabled = true;
+        }
+    }
+
+    private void OpenReleases_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo { FileName = AppInfo.ReleasesUrl, UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("打开 Releases 页面失败", ex);
+        }
+    }
+
+    // ══════════════ 关于 ══════════════
+
+    private void OpenAbout_Click(object sender, RoutedEventArgs e) => OpenAboutWindow(null);
+
+    /// <summary>打开关于窗口；带了检查结果就直接显示，省一次请求。</summary>
+    private void OpenAboutWindow(UpdateCheckResult? known)
+    {
+        var about = new AboutWindow();
+        if (known is not null)
+        {
+            about.ApplyKnownResult(known);
+        }
+
+        // 设置窗口是模态的，这里不强设 Owner，避免模态链互相卡住
+        about.Show();
+    }
+
     // ══════════════ 保存 / 取消 ══════════════
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         _working.ShowLabels = ShowLabelsBox.IsChecked == true;
+        _working.EnableCardAnimations = CardAnimationsBox.IsChecked == true;
+        _working.AutoCheckUpdate = AutoCheckUpdateBox.IsChecked == true;
+
+        // 下拉项的 Tag 才是真正的源 key，Content 只是给人看的显示名
+        if (UpdateSourceBox.SelectedItem is ComboBoxItem { Tag: string sourceKey }
+            && UpdateService.IsKnownSource(sourceKey))
+        {
+            _working.UpdateSource = sourceKey;
+        }
         _working.Topmost = TopmostBox.IsChecked == true;
         _working.StartFullscreen = FullscreenBox.IsChecked == true;
         _working.MinimizeToTray = TrayBox.IsChecked == true;
@@ -445,6 +558,9 @@ public partial class SettingsWindow : Window
         to.AutoStart = from.AutoStart;
         to.ConfirmOnRemove = from.ConfirmOnRemove;
         to.MinimizeOnGameLaunch = from.MinimizeOnGameLaunch;
+        to.EnableCardAnimations = from.EnableCardAnimations;
+        to.AutoCheckUpdate = from.AutoCheckUpdate;
+        to.UpdateSource = from.UpdateSource;
         to.ScanPaths = from.ScanPaths.ToList();
         to.ScanDepth = from.ScanDepth;
         to.MinExecutableSize = from.MinExecutableSize;

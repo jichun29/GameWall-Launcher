@@ -24,25 +24,14 @@
             </Grid.RowDefinitions>
 
             <!-- 顶部头图：深空渐变 + 品牌光晕 -->
-            <Border Grid.Row="0" CornerRadius="16,16,0,0" Height="128" ClipToBounds="True">
-                <Border.Background>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="{DynamicResource Color.HeroStart}" Offset="0" />
-                        <GradientStop Color="{DynamicResource Color.HeroEnd}" Offset="1" />
-                    </LinearGradientBrush>
-                </Border.Background>
-
+            <!-- 渐变整条用画刷资源：GradientStop.Color 塞 DynamicResource 会解析失败 -->
+            <Border Grid.Row="0" CornerRadius="16,16,0,0" Height="128" ClipToBounds="True"
+                    Background="{DynamicResource Brush.HeroGradient}">
                 <Grid>
                     <!-- 右上角冷光 -->
                     <Ellipse Width="360" Height="360" HorizontalAlignment="Right" VerticalAlignment="Top"
-                             Margin="0,-210,-90,0" Opacity="0.5">
-                        <Ellipse.Fill>
-                            <RadialGradientBrush>
-                                <GradientStop Color="{DynamicResource Color.Glow}" Offset="0" />
-                                <GradientStop Color="#00000000" Offset="1" />
-                            </RadialGradientBrush>
-                        </Ellipse.Fill>
-                    </Ellipse>
+                             Margin="0,-210,-90,0" Opacity="0.5"
+                             Fill="{DynamicResource Brush.GlowSpot}" />
 
                     <Grid Margin="32,0,24,0">
                         <Grid.ColumnDefinitions>

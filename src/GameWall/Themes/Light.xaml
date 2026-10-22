@@ -83,6 +83,17 @@
     <sys:Double x:Key="Double.GlowOpacity">0.18</sys:Double>
     <sys:Double x:Key="Double.GlowBlur">14</sys:Double>
 
+    <!-- Hero 头图与光斑。注意：GradientStop.Color 不能用 DynamicResource 绑到 Color 资源，
+         所以这里直接把整个渐变定义成画刷资源。 -->
+    <LinearGradientBrush x:Key="Brush.HeroGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#C6DAF7" Offset="0" />
+        <GradientStop Color="#F2F5FA" Offset="1" />
+    </LinearGradientBrush>
+    <RadialGradientBrush x:Key="Brush.GlowSpot">
+        <GradientStop Color="#FF1668E3" Offset="0" />
+        <GradientStop Color="#001668E3" Offset="1" />
+    </RadialGradientBrush>
+
     <Color x:Key="Color.HeroStart">#C6DAF7</Color>
     <Color x:Key="Color.HeroEnd">#F2F5FA</Color>
     <SolidColorBrush x:Key="Brush.HeroText" Color="#12233D" />

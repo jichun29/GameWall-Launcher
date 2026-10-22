@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -18,8 +18,15 @@
     <AssemblyTitle>GameWall</AssemblyTitle>
     <Product>GameWall</Product>
     <Description>A lightweight Windows game launcher with visual wall-style game management</Description>
-    <Version>1.5.0</Version>
-    <FileVersion>1.5.0.0</FileVersion>
+    <!-- 作者信息：程序集里也会带上，右键 exe 属性 → 详细信息 里能看到 -->
+    <Authors>季春二九 (jichun29)</Authors>
+    <Company>季春二九</Company>
+    <Copyright>© 2026 季春二九 (jichun29). MIT License.</Copyright>
+    <RepositoryUrl>https://github.com/jichun29/GameWall-Launcher</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/jichun29/GameWall-Launcher</PackageProjectUrl>
+    <Version>1.5.1</Version>
+    <FileVersion>1.5.1.0</FileVersion>
+    <InformationalVersion>1.5.1</InformationalVersion>
     <!--
       单文件发布参数（dotnet publish 时生效）。
       SelfContained=true 表示把 .NET 运行时一起打进去，用户机器不需要预装 .NET，双击即用。

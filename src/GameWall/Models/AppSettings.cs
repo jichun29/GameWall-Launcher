@@ -1,19 +1,28 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace GameWall.Models;
 
-/// <summary>视图模式</summary>
+/// <summary>
+/// 视图模式。
+///
+/// 历史包袱：1.5 及以前有三种视图（Wall 大图墙 / List 列表 / Compact 紧凑卡片）。
+/// 1.6 把「大图墙」删掉了——它和「卡片式」的区别只是卡片更宽，信息量一样却更占地方；
+/// 现在的两种视图就是「卡片式」（默认，像 Steam 库）和「列表式」。
+///
+/// 枚举值故意没有重排：Compact 仍保留 2，把旧配置里的 Wall(0) 在读取时归一到 Card(2)，
+/// 这样老用户升级后不会看到一个空白的视图。
+/// </summary>
 public enum WallViewMode
 {
-    /// <summary>大图墙（默认）</summary>
+    /// <summary>已废弃的大图墙（仅用于兼容旧配置，读取时会被换成 <see cref="Card"/>）</summary>
     Wall = 0,
 
-    /// <summary>列表模式</summary>
+    /// <summary>列表式</summary>
     List = 1,
 
-    /// <summary>紧凑模式</summary>
-    Compact = 2,
+    /// <summary>卡片式（默认，像 Steam 的游戏库）</summary>
+    Card = 2,
 }
 
 /// <summary>
@@ -60,11 +69,14 @@ public sealed class AppSettings
     /// </summary>
     public string Theme { get; set; } = ThemeModes.Dark;
 
-    /// <summary>当前视图模式</summary>
-    public WallViewMode ViewMode { get; set; } = WallViewMode.Wall;
+    /// <summary>当前视图模式（默认卡片式）</summary>
+    public WallViewMode ViewMode { get; set; } = WallViewMode.Card;
 
-    /// <summary>大图墙卡片宽度（像素），高度按 3:4 自动计算</summary>
+    /// <summary>卡片宽度（像素），封面高度跟着宽度走（正方形）</summary>
     public double CardWidth { get; set; } = 208;
+
+    /// <summary>卡片悬停时的放大动画是否开启（低配机器可以关掉省 GPU）</summary>
+    public bool EnableCardAnimations { get; set; } = true;
 
     /// <summary>卡片是否显示名称文字</summary>
     public bool ShowLabels { get; set; } = true;
@@ -138,4 +150,14 @@ public sealed class AppSettings
 
     /// <summary>上次检查更新的时间（预留）</summary>
     public DateTime? LastCheckAt { get; set; }
+
+    // ── 更新 ────────────────────────────────────────────────
+    /// <summary>启动时自动检查更新（每天最多真正请求一次 GitHub）</summary>
+    public bool AutoCheckUpdate { get; set; } = true;
+
+    /// <summary>
+    /// 更新下载源。<c>auto</c> = 直连失败时自动切换到内置加速源，
+    /// 也可以填 <c>github</c> / <c>ghproxy</c> / <c>ghfast</c> / <c>moeyy</c> 强制指定。
+    /// </summary>
+    public string UpdateSource { get; set; } = "auto";
 }

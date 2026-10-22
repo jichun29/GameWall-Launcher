@@ -1,5 +1,5 @@
-﻿# 按主题批量抓图：改动 settings.json 的 Theme 后重启 GameWall，
-# 依次切换大图墙 / 列表 / 紧凑三种视图并各抓一张。
+# 按主题批量抓图：改动 settings.json 的 Theme 后重启 GameWall，
+# 依次切换卡片式 / 列表式两种视图并各抓一张，再抓设置与关于两个对话框。
 # 用法：powershell -ExecutionPolicy Bypass -File tools\shoot-theme.ps1 -Theme Dark
 param(
     [ValidateSet("Dark", "Light", "System")][string]$Theme = "Dark",
@@ -35,7 +35,7 @@ $outDir = Join-Path $repo 'docs\screenshots'
 if (-not $Prefix) { $Prefix = $Theme.ToLower() }
 & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'make-screenshots.ps1') -OutDir $outDir 2>&1 | Out-Null
 
-foreach ($n in @('wall', 'list', 'compact')) {
+foreach ($n in @('card', 'list', 'dialog-about')) {
     $src = Join-Path $outDir "$n.png"
     if (Test-Path $src) {
         Move-Item -Force $src (Join-Path $outDir "$Prefix-$n.png")
@@ -67,6 +67,13 @@ Start-Sleep -Seconds 3
 $s = Get-Content $sp -Raw -Encoding UTF8 | ConvertFrom-Json
 $s.FirstRunCompleted = $true
 [System.IO.File]::WriteAllText($sp, (ConvertTo-Json -InputObject $s -Depth 5), $utf8)
+
+# 6) 引导页是 FirstRunCompleted=false 时启动的，改回 true 后必须再重启一次，
+#    否则留在前台运行的那个进程仍挂着「欢迎来到 GameWall」对话框
+Get-Process -Name GameWall -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Milliseconds 600
+Start-Process -FilePath $exe | Out-Null
+Start-Sleep -Seconds 2
 
 Get-ChildItem (Join-Path $outDir "$Prefix-*.png") | ForEach-Object {
     Write-Host ("{0}  {1} bytes" -f $_.Name, $_.Length)

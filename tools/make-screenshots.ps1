@@ -1,5 +1,5 @@
-﻿# 生成 README 用的界面截图：切换三种视图模式并各抓一张图。
-# 依赖：GameWall 已在运行（大图墙为默认视图）。
+﻿# 生成 README 用的界面截图：切换卡片式 / 列表式两种视图并各抓一张图。
+# 依赖：GameWall 已在运行（卡片式为默认视图）。
 param(
     [string]$ProcessName = "GameWall",
     [string]$OutDir = "docs\screenshots"
@@ -21,6 +21,7 @@ public class GameWallShooter {
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint flags);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
     public struct RECT { public int Left, Top, Right, Bottom; }
 
     public static IntPtr Find(uint targetPid, string title) {
@@ -64,10 +65,10 @@ function Click-Button([string]$name) {
     $btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
 
-function Save-Window([string]$out) {
+function Save-Window([string]$out, [string]$title = "GameWall") {
     Start-Sleep -Milliseconds 900
-    $hwnd = [GameWallShooter]::Find([uint32]$proc.Id, "GameWall")
-    if ($hwnd -eq [IntPtr]::Zero) { throw "找不到 GameWall 窗口" }
+    $hwnd = [GameWallShooter]::Find([uint32]$proc.Id, $title)
+    if ($hwnd -eq [IntPtr]::Zero) { throw "找不到窗口 '$title'" }
     $rect = New-Object GameWallShooter+RECT
     [GameWallShooter]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
     $w = $rect.Right - $rect.Left
@@ -86,9 +87,18 @@ function Save-Window([string]$out) {
     Write-Host "saved $full (${w}x${h}) ok=$ok"
 }
 
-Click-Button "▦"; Save-Window "wall.png"
+# 只要两种视图：▤ = 卡片式（默认，像 Steam 游戏库）、☰ = 列表式
+Click-Button "▤"; Save-Window "card.png"
 Click-Button "☰"; Save-Window "list.png"
-Click-Button "▤"; Save-Window "compact.png"
-Click-Button "▦"; Save-Window "wall.png"
+Click-Button "▤"; Save-Window "card.png"
+
+# 「关于」窗口单独抓一张（ShowInTaskbar=False，只能用 Win32 句柄找）
+Click-Button "ⓘ 关于"
+Save-Window "dialog-about.png" "关于 GameWall"
+$aboutHwnd = [GameWallShooter]::Find([uint32]$proc.Id, "关于 GameWall")
+if ($aboutHwnd -ne [IntPtr]::Zero) {
+    # 关闭：发 WM_CLOSE，避免依赖焦点
+    [GameWallShooter]::PostMessage($aboutHwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+}
 
 Write-Host "done"

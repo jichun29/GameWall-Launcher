@@ -291,6 +291,18 @@ if (Invoke-ByName "⤓ 平台导入") {
     Close-TopDialog $mainHwnd
 }
 
+# 关于对话框
+if (Invoke-ByName "ⓘ 关于") {
+    foreach ($w in [GWAudit]::Windows($pid32)) {
+        if ($w -ne $mainHwnd) {
+            [GWAudit]::SetWindowPos($w, [IntPtr]::Zero, 960, 40, 0, 0, 0x0001) | Out-Null
+            Start-Sleep -Milliseconds 800
+            Audit-Window $w "06-about"
+        }
+    }
+    Close-TopDialog $mainHwnd
+}
+
 # 编辑游戏（右键第一张卡片 → 编辑）
 $card = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
     (New-Object System.Windows.Automation.PropertyCondition(

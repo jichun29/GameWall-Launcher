@@ -35,7 +35,7 @@ public sealed class MainViewModel : ObservableObject
     private bool _isBusy;
     private string _busyText = string.Empty;
     private GameCardViewModel? _selectedCard;
-    private WallViewMode _viewMode = WallViewMode.Wall;
+    private WallViewMode _viewMode = WallViewMode.Card;
 
     public MainViewModel()
     {
@@ -61,12 +61,8 @@ public sealed class MainViewModel : ObservableObject
         ToggleFavoriteCommand = new RelayCommand(p => ToggleFavorite(p as GameCardViewModel ?? SelectedCard));
         ClearFiltersCommand = new RelayCommand(ClearFilters);
         RefreshMissingCommand = new RelayCommand(_ => RefreshAllVisuals());
-
-        foreach (var mode in new[] { WallViewMode.Wall, WallViewMode.List, WallViewMode.Compact })
-        {
-            // 视图切换用同一个 RelayCommand，参数区分模式
-        }
-
+        AboutCommand = new RelayCommand(_ => RequestAbout?.Invoke());
+        CheckUpdateCommand = new AsyncRelayCommand(() => CheckUpdateAsync(interactive: true), () => !IsCheckingUpdate);
         SetViewModeCommand = new RelayCommand(p =>
         {
             if (p is WallViewMode m)
@@ -88,6 +84,9 @@ public sealed class MainViewModel : ObservableObject
     public event Action? RequestImport;
     public event Action? RequestSettings;
     public event Action<GameCardViewModel?>? RequestEdit;
+
+    /// <summary>请求打开「关于」窗口</summary>
+    public event Action? RequestAbout;
 
     // ── 数据 ────────────────────────────────────────────────
     public ObservableCollection<GameCardViewModel> Cards { get; }
@@ -119,6 +118,8 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand ClearFiltersCommand { get; }
     public RelayCommand RefreshMissingCommand { get; }
     public RelayCommand SetViewModeCommand { get; }
+    public RelayCommand AboutCommand { get; }
+    public AsyncRelayCommand CheckUpdateCommand { get; }
 
     // ── 筛选状态 ────────────────────────────────────────────
     public string SearchText
@@ -166,16 +167,20 @@ public sealed class MainViewModel : ObservableObject
             {
                 _settings.Current.ViewMode = value;
                 _settings.Save();
-                OnPropertyChanged(nameof(IsWallMode));
                 OnPropertyChanged(nameof(IsListMode));
-                OnPropertyChanged(nameof(IsCompactMode));
+                OnPropertyChanged(nameof(IsCardMode));
             }
         }
     }
 
-    public bool IsWallMode => ViewMode == WallViewMode.Wall;
+    /// <summary>列表式</summary>
     public bool IsListMode => ViewMode == WallViewMode.List;
-    public bool IsCompactMode => ViewMode == WallViewMode.Compact;
+
+    /// <summary>卡片式（默认）</summary>
+    public bool IsCardMode => ViewMode == WallViewMode.Card;
+
+    /// <summary>卡片悬停动画开关（设置里可以关掉）</summary>
+    public bool CardAnimationsEnabled => Settings.EnableCardAnimations;
 
     public GameCardViewModel? SelectedCard
     {
@@ -193,6 +198,113 @@ public sealed class MainViewModel : ObservableObject
     {
         get => _busyText;
         private set => SetProperty(ref _busyText, value);
+    }
+
+    // ── 更新检查 ────────────────────────────────────────────
+
+    private bool _isCheckingUpdate;
+    private UpdateInfo? _availableUpdate;
+    private string _updateBanner = string.Empty;
+
+    /// <summary>是否正在检查更新（命令的 CanExecute 会跟着变）</summary>
+    public bool IsCheckingUpdate
+    {
+        get => _isCheckingUpdate;
+        private set
+        {
+            if (SetProperty(ref _isCheckingUpdate, value))
+            {
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+            }
+        }
+    }
+
+    /// <summary>待安装的新版本（没有则为 null）</summary>
+    public UpdateInfo? AvailableUpdate
+    {
+        get => _availableUpdate;
+        private set
+        {
+            if (SetProperty(ref _availableUpdate, value))
+            {
+                OnPropertyChanged(nameof(HasUpdate));
+            }
+        }
+    }
+
+    /// <summary>顶栏那条「有新版本」提示的可见性</summary>
+    public bool HasUpdate => _availableUpdate is not null;
+
+    /// <summary>顶栏提示文字，例如「新版本 v1.6.1 可用」</summary>
+    public string UpdateBanner
+    {
+        get => _updateBanner;
+        private set => SetProperty(ref _updateBanner, value);
+    }
+
+    /// <summary>检查更新的成功回调，由 MainWindow 注入（用来弹对话框）。</summary>
+    public Func<UpdateCheckResult, Task>? UpdateFoundHandler { get; set; }
+
+    /// <summary>用户点了顶栏提示条上的「忽略」：收起提示，本次运行不再提。</summary>
+    public void DismissUpdate()
+    {
+        UpdateBanner = string.Empty;
+        AvailableUpdate = null;
+    }
+
+    /// <summary>
+    /// 检查更新。
+    /// </summary>
+    /// <param name="interactive">
+    /// true = 用户主动点的（无论有没有新版本都给反馈）；
+    /// false = 启动时自动检查（只有真的发现新版本才打扰用户）。
+    /// </param>
+    public async Task CheckUpdateAsync(bool interactive)
+    {
+        if (IsCheckingUpdate)
+        {
+            return;
+        }
+
+        IsCheckingUpdate = true;
+        BusyText = "正在检查更新…";
+
+        try
+        {
+            var result = await UpdateService.CheckAsync(Settings.UpdateSource).ConfigureAwait(true);
+            Settings.LastCheckAt = DateTime.Now;
+            SaveSettings();
+
+            if (result.Success && result.HasUpdate && result.Info is { } info)
+            {
+                AvailableUpdate = info;
+                UpdateBanner = $"新版本 v{info.Version} 可用";
+            }
+            else
+            {
+                AvailableUpdate = null;
+                UpdateBanner = string.Empty;
+            }
+
+            if (UpdateFoundHandler is not null && (interactive || result.HasUpdate))
+            {
+                await UpdateFoundHandler(result).ConfigureAwait(true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("检查更新时出错", ex);
+            if (interactive)
+            {
+                MessageBox.Show("检查更新时出错：" + ex.Message, "GameWall",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            IsCheckingUpdate = false;
+            BusyText = string.Empty;
+        }
     }
 
     // ── 集合维护 ────────────────────────────────────────────
