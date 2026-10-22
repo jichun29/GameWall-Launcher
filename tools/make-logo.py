@@ -36,9 +36,9 @@ OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
 # ── 配色 ─────────────────────────────────────────────────────────────
 C_PLATE_TOP = (0x1B, 0x22, 0x33)     # 底盘上沿
 C_PLATE_BOT = (0x08, 0x0A, 0x10)     # 底盘下沿
-C_RIM_A = (0x22, 0xD3, 0xEE)         # 霓虹描边：青
-C_RIM_B = (0x4F, 0x8C, 0xFF)         # 霓虹描边：蓝
-C_RIM_C = (0x8B, 0x5C, 0xF6)         # 霓虹描边：紫
+C_RIM_A = (0xB4, 0xF6, 0xFF)         # 霓虹描边：浅青高光
+C_RIM_B = (0x45, 0xDF, 0xFF)         # 霓虹描边：电光青
+C_RIM_C = (0xFF, 0xB6, 0x4D)         # 霓虹描边：琥珀（不用紫 —— 青到紫是最典型的 AI 生成感配色）
 C_GLYPH_TOP = (0xFF, 0xFF, 0xFF)     # 字母上沿
 C_GLYPH_BOT = (0xB6, 0xE8, 0xFF)     # 字母下沿
 

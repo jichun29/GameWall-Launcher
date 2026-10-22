@@ -24,10 +24,19 @@ public sealed class SettingsService
             loaded.ScanPaths = GameScanner.DefaultScanRoots();
         }
 
-        if (loaded.CardWidth < 120 || loaded.CardWidth > 420)
+        // 卡片宽度：越界回落新默认值；等于旧版本默认值 208 的也迁移到 150，
+        // 否则老用户升级后仍是那个「封面框偏大」的样子，感受不到这次改动。
+        var widthBefore = loaded.CardWidth;
+        if (loaded.CardWidth < AppSettings.MinCardWidth || loaded.CardWidth > AppSettings.MaxCardWidth)
         {
-            loaded.CardWidth = 208;
+            loaded.CardWidth = new AppSettings().CardWidth;
         }
+        else if (Math.Abs(loaded.CardWidth - AppSettings.LegacyCardWidth) < 0.5)
+        {
+            loaded.CardWidth = new AppSettings().CardWidth;
+        }
+
+        var widthMigrated = Math.Abs(widthBefore - loaded.CardWidth) > 0.5;
 
         // 主题三态归一：System / Dark / Light，非法值回退深色（默认）
         loaded.Theme = ThemeModes.Normalize(loaded.Theme);
@@ -79,7 +88,8 @@ public sealed class SettingsService
         // 首次运行（或配置文件被杀掉）时立刻落盘一份，
         // 这样用户一启动就能在 %AppData%\GameWall\ 里看到 settings.json，
         // 也避免「改了设置但进程被杀、配置还没写过」的情况。
-        if (!File.Exists(AppPaths.SettingsFile))
+        // 卡片宽度做过迁移时也要落盘，否则下次启动又会按 208 迁移一遍。
+        if (!File.Exists(AppPaths.SettingsFile) || widthMigrated)
         {
             Save();
         }

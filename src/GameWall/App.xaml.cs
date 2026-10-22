@@ -137,6 +137,22 @@ public partial class App : System.Windows.Application
                 RestoreMainWindow();
                 _mainWindow?.ViewModel.ScanCommand.Execute(null);
             });
+            menu.Items.Add("整理桌面…", null, (_, _) =>
+            {
+                RestoreMainWindow();
+                _mainWindow?.ViewModel.TidyDesktopCommand.Execute(null);
+            });
+            menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+            menu.Items.Add("设置…", null, (_, _) =>
+            {
+                RestoreMainWindow();
+                _mainWindow?.ViewModel.SettingsCommand.Execute(null);
+            });
+            menu.Items.Add("检查更新…", null, (_, _) =>
+            {
+                RestoreMainWindow();
+                _mainWindow?.ViewModel.CheckUpdateCommand.Execute(null);
+            });
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
             menu.Items.Add("退出", null, (_, _) => ExitApp());
 

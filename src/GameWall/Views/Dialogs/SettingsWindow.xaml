@@ -71,8 +71,8 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Slider x:Name="CardWidthSlider" Grid.Column="0" Minimum="140" Maximum="340"
-                                TickFrequency="8" IsSnapToTickEnabled="True"
+                        <Slider x:Name="CardWidthSlider" Grid.Column="0" Minimum="110" Maximum="260"
+                                TickFrequency="5" IsSnapToTickEnabled="True"
                                 ValueChanged="CardWidth_Changed" VerticalAlignment="Center" />
                         <TextBlock x:Name="CardWidthText" Grid.Column="1" Style="{StaticResource Text.Subtitle}"
                                    VerticalAlignment="Center" Margin="14,0,0,0" MinWidth="60" />

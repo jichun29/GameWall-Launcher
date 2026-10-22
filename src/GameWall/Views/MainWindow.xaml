@@ -151,7 +151,7 @@
                             BorderBrush="{DynamicResource Brush.Border}"
                             BorderThickness="1">
                         <Border.Effect>
-                            <DropShadowEffect BlurRadius="20" ShadowDepth="6" Direction="270"
+                            <DropShadowEffect BlurRadius="13" ShadowDepth="4" Direction="270"
                                               Color="{DynamicResource Color.Shadow}"
                                               Opacity="{DynamicResource Double.ShadowOpacity}" />
                         </Border.Effect>
@@ -169,19 +169,19 @@
                                        Stretch="UniformToFill"
                                        RenderOptions.BitmapScalingMode="HighQuality"
                                        Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
-                                <Border Width="84" Height="84" CornerRadius="20"
+                                <Border Width="64" Height="64" CornerRadius="16"
                                         Background="#26FFFFFF"
                                         BorderBrush="#33FFFFFF"
                                         BorderThickness="1"
                                         HorizontalAlignment="Center" VerticalAlignment="Center"
                                         Visibility="{Binding ShowIcon, Converter={StaticResource BoolToVis}}">
                                     <Image Source="{Binding IconImage, Converter={StaticResource PathToImage}}"
-                                           Width="62" Height="62"
+                                           Width="46" Height="46"
                                            Stretch="Uniform"
                                            RenderOptions.BitmapScalingMode="HighQuality" />
                                 </Border>
                                 <TextBlock Text="{Binding InitialGlyph}"
-                                           FontSize="66"
+                                           FontSize="48"
                                            FontWeight="Bold"
                                            Foreground="White"
                                            Opacity="0.72"
@@ -192,12 +192,13 @@
 
                             <!-- 底部渐变遮罩 + 文字。只在有真实封面时才压暗，
                                  否则会把居中摆的图标徽标和占位渐变一起糊掉。 -->
-                            <Rectangle Fill="{DynamicResource Brush.CardOverlay}" VerticalAlignment="Bottom" Height="150"
+                            <Rectangle x:Name="CardOverlayRect" Fill="{DynamicResource Brush.CardOverlay}"
+                                       VerticalAlignment="Bottom" Height="112"
                                        Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
 
                             <!-- 左上角角标 -->
                             <StackPanel x:Name="BadgeRow" Orientation="Horizontal"
-                                        HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12">
+                                        HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
                                 <Border Background="#CC000000" CornerRadius="9" Padding="7,3" Margin="0,0,6,0"
                                         Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVis}}">
                                     <TextBlock Text="★" FontSize="11" Foreground="#FFFFC53D" />
@@ -208,19 +209,19 @@
                                 </Border>
                             </StackPanel>
 
-                            <!-- 名称 / 副标题：左右留 16，底部留 15，不再贴着封面边线 -->
-                            <StackPanel VerticalAlignment="Bottom" Margin="16,0,16,15">
+                            <!-- 名称 / 副标题：左右留 12，底部留 12，不再贴着封面边线 -->
+                            <StackPanel VerticalAlignment="Bottom" Margin="12,0,12,12">
                                 <TextBlock Text="{Binding Name}"
                                            Foreground="White"
-                                           FontSize="15"
+                                           FontSize="13.5"
                                            FontWeight="SemiBold"
                                            TextTrimming="CharacterEllipsis"
                                            TextOptions.TextFormattingMode="Ideal"
                                            Visibility="{Binding DataContext.Settings.ShowLabels, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}" />
                                 <TextBlock Text="{Binding Subtitle}"
                                            Foreground="#B8FFFFFF"
-                                           FontSize="11"
-                                           Margin="0,4,0,0"
+                                           FontSize="10.5"
+                                           Margin="0,3,0,0"
                                            TextTrimming="CharacterEllipsis"
                                            Visibility="{Binding DataContext.Settings.ShowLabels, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}" />
                             </StackPanel>
@@ -228,8 +229,8 @@
                             <!-- 悬停播放按钮 -->
                             <Border x:Name="PlayOverlay" Background="{DynamicResource Brush.CoverScrim}"
                                     Opacity="0" CornerRadius="14">
-                                <Border x:Name="PlayCircle" Width="62" Height="62"
-                                        CornerRadius="31"
+                                <Border x:Name="PlayCircle" Width="50" Height="50"
+                                        CornerRadius="25"
                                         Background="{DynamicResource Brush.AccentGradient}"
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center">
@@ -240,7 +241,7 @@
                                         <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.85"
                                                           Color="{DynamicResource Color.Glow}" />
                                     </Border.Effect>
-                                    <Path Data="M 0 0 L 19 11 L 0 22 Z"
+                                    <Path Data="M 0 0 L 13 7.5 L 0 15 Z"
                                           Fill="#04070D"
                                           HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
@@ -264,13 +265,21 @@
             </Grid>
 
             <DataTemplate.Triggers>
-                <!-- ── 悬停：放大 + 发光 + 播放键回弹 ── -->
+                <!-- ── 悬停：描边、遮罩、标签这些「状态」变化始终生效 ── -->
                 <DataTrigger Binding="{Binding IsMouseOver, ElementName=CardRoot}" Value="True">
                     <Setter TargetName="CardRoot" Property="Panel.ZIndex" Value="20" />
                     <Setter TargetName="CoverBorder" Property="BorderBrush" Value="{DynamicResource Brush.CardBorderHover}" />
                     <Setter TargetName="PlayOverlay" Property="Opacity" Value="1" />
                     <Setter TargetName="TagRow" Property="Opacity" Value="1" />
-                    <DataTrigger.EnterActions>
+                </DataTrigger>
+
+                <!-- ── 悬停动画（放大 + 发光 + 播放键回弹）：可以在设置里关掉 ── -->
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsMouseOver, ElementName=CardRoot}" Value="True" />
+                        <Condition Binding="{Binding DataContext.Settings.EnableCardAnimations, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                    </MultiDataTrigger.Conditions>
+                    <MultiDataTrigger.EnterActions>
                         <BeginStoryboard>
                             <Storyboard>
                                 <DoubleAnimation Storyboard.TargetName="CardScale"
@@ -306,8 +315,8 @@
                                 </DoubleAnimation>
                             </Storyboard>
                         </BeginStoryboard>
-                    </DataTrigger.EnterActions>
-                    <DataTrigger.ExitActions>
+                    </MultiDataTrigger.EnterActions>
+                    <MultiDataTrigger.ExitActions>
                         <BeginStoryboard>
                             <Storyboard>
                                 <DoubleAnimation Storyboard.TargetName="CardScale"
@@ -335,15 +344,23 @@
                                                  To="0.82" Duration="0:0:0.15" />
                             </Storyboard>
                         </BeginStoryboard>
-                    </DataTrigger.ExitActions>
-                </DataTrigger>
+                    </MultiDataTrigger.ExitActions>
+                </MultiDataTrigger>
 
-                <!-- ── 选中：霓虹描边 + 呼吸式外发光 ── -->
+                <!-- ── 选中：霓虹描边始终生效 ── -->
                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
                     <Setter TargetName="CoverBorder" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
                     <Setter TargetName="CoverBorder" Property="BorderThickness" Value="2" />
                     <Setter TargetName="CardRoot" Property="Panel.ZIndex" Value="10" />
-                    <DataTrigger.EnterActions>
+                </DataTrigger>
+
+                <!-- ── 选中呼吸光：同样受动画开关控制 ── -->
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsSelected}" Value="True" />
+                        <Condition Binding="{Binding DataContext.Settings.EnableCardAnimations, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                    </MultiDataTrigger.Conditions>
+                    <MultiDataTrigger.EnterActions>
                         <BeginStoryboard x:Name="SelectPulse">
                             <Storyboard>
                                 <DoubleAnimation Storyboard.TargetName="SelectGlow"
@@ -352,8 +369,8 @@
                                                  AutoReverse="True" RepeatBehavior="Forever" />
                             </Storyboard>
                         </BeginStoryboard>
-                    </DataTrigger.EnterActions>
-                    <DataTrigger.ExitActions>
+                    </MultiDataTrigger.EnterActions>
+                    <MultiDataTrigger.ExitActions>
                         <BeginStoryboard>
                             <Storyboard>
                                 <DoubleAnimation Storyboard.TargetName="SelectGlow"
@@ -361,7 +378,13 @@
                                                  To="0" Duration="0:0:0.3" />
                             </Storyboard>
                         </BeginStoryboard>
-                    </DataTrigger.ExitActions>
+                    </MultiDataTrigger.ExitActions>
+                </MultiDataTrigger>
+
+                <!-- 关掉「显示游戏名称」后，底部那块渐变遮罩也没意义了，
+                     留着只会平白压暗一条封面 -->
+                <DataTrigger Binding="{Binding DataContext.Settings.ShowLabels, RelativeSource={RelativeSource AncestorType=Window}}" Value="False">
+                    <Setter TargetName="CardOverlayRect" Property="Height" Value="0" />
                 </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
@@ -454,9 +477,13 @@
                     <Setter TargetName="RowRoot" Property="Background" Value="{DynamicResource Brush.CardHover}" />
                     <Setter TargetName="RowRoot" Property="BorderBrush" Value="{DynamicResource Brush.CardBorderHover}" />
                 </Trigger>
-                <!-- 悬停：整行右移，贴边感消失 -->
-                <DataTrigger Binding="{Binding IsMouseOver, ElementName=RowHolder}" Value="True">
-                    <DataTrigger.EnterActions>
+                <!-- 悬停：整行右移，贴边感消失（可在设置里关掉动画） -->
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsMouseOver, ElementName=RowHolder}" Value="True" />
+                        <Condition Binding="{Binding DataContext.Settings.EnableCardAnimations, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                    </MultiDataTrigger.Conditions>
+                    <MultiDataTrigger.EnterActions>
                         <BeginStoryboard>
                             <Storyboard>
                                 <DoubleAnimation Storyboard.TargetName="RowShift"
@@ -468,8 +495,8 @@
                                 </DoubleAnimation>
                             </Storyboard>
                         </BeginStoryboard>
-                    </DataTrigger.EnterActions>
-                    <DataTrigger.ExitActions>
+                    </MultiDataTrigger.EnterActions>
+                    <MultiDataTrigger.ExitActions>
                         <BeginStoryboard>
                             <Storyboard>
                                 <DoubleAnimation Storyboard.TargetName="RowShift"
@@ -481,8 +508,8 @@
                                 </DoubleAnimation>
                             </Storyboard>
                         </BeginStoryboard>
-                    </DataTrigger.ExitActions>
-                </DataTrigger>
+                    </MultiDataTrigger.ExitActions>
+                </MultiDataTrigger>
                 <!-- 选中：霓虹描边 + 底色提亮 -->
                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
                     <Setter TargetName="RowRoot" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />

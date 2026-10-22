@@ -72,8 +72,21 @@ public sealed class AppSettings
     /// <summary>当前视图模式（默认卡片式）</summary>
     public WallViewMode ViewMode { get; set; } = WallViewMode.Card;
 
-    /// <summary>卡片宽度（像素），封面高度跟着宽度走（正方形）</summary>
-    public double CardWidth { get; set; } = 208;
+    /// <summary>
+    /// 卡片宽度（像素），封面高度跟着宽度走（正方形）。
+    /// 默认 150 —— 一屏能放下 6~8 张，接近 Steam 库的密度；
+    /// 想更大气可以拖到 260。
+    /// </summary>
+    public double CardWidth { get; set; } = 150;
+
+    /// <summary>可选的卡片宽度下限</summary>
+    public const double MinCardWidth = 110;
+
+    /// <summary>可选的卡片宽度上限</summary>
+    public const double MaxCardWidth = 260;
+
+    /// <summary>旧版本用的默认卡片宽度，读配置时识别并迁移成新默认值</summary>
+    public const double LegacyCardWidth = 208;
 
     /// <summary>卡片悬停时的放大动画是否开启（低配机器可以关掉省 GPU）</summary>
     public bool EnableCardAnimations { get; set; } = true;

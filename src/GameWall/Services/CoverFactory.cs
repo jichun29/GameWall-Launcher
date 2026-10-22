@@ -52,14 +52,44 @@ public static class CoverFactory
     /// </summary>
     public static Brush CreatePlaceholderBrush(string gameName)
     {
-        var hue = StableHash(gameName) % 360;
-        var top = FromHsl(hue, 0.45, 0.32);
-        var bottom = FromHsl((hue + 40) % 360, 0.55, 0.12);
+        var (top, bottom) = PickColors(gameName);
 
         var brush = new LinearGradientBrush(top, bottom, 90);
         brush.Freeze();
         return brush;
     }
+
+    /// <summary>
+    /// 按名字哈希从一组「像游戏封面」的暗色里挑一对颜色。
+    ///
+    /// 早先的实现是「哈希取色相」，结果大约四分之一的游戏会落到紫色区间，
+    /// 一整屏看过去全是青紫渐变，特别像 AI 生成的图。这里改成从手工挑过的
+    /// 色板里选：深海蓝、青、苔绿、琥珀、暗红、石板灰，色相刻意避开 260~330
+    /// 的紫区，饱和度压低、明度压暗，摆在深色背景上不刺眼也不脏。
+    /// </summary>
+    private static (Color Top, Color Bottom) PickColors(string gameName)
+    {
+        var palette = Palette;
+        var index = StableHash(gameName) % palette.Length;
+        return palette[index];
+    }
+
+    /// <summary>占位封面色板（上亮下暗，每项都在深色底上验证过可读性）。</summary>
+    private static readonly (Color Top, Color Bottom)[] Palette =
+    {
+        (Rgb(0x1E, 0x3A, 0x5F), Rgb(0x09, 0x12, 0x1F)), // 深海蓝
+        (Rgb(0x14, 0x4A, 0x52), Rgb(0x07, 0x16, 0x1B)), // 幽青
+        (Rgb(0x1F, 0x4A, 0x3C), Rgb(0x08, 0x17, 0x12)), // 苔绿
+        (Rgb(0x5A, 0x3E, 0x14), Rgb(0x1B, 0x11, 0x06)), // 琥珀
+        (Rgb(0x53, 0x22, 0x22), Rgb(0x1A, 0x0A, 0x0A)), // 暗红
+        (Rgb(0x2E, 0x33, 0x42), Rgb(0x0D, 0x0F, 0x15)), // 石板灰
+        (Rgb(0x22, 0x2C, 0x4E), Rgb(0x0B, 0x0E, 0x1A)), // 靛夜
+        (Rgb(0x39, 0x33, 0x22), Rgb(0x12, 0x10, 0x0A)), // 古铜
+        (Rgb(0x16, 0x3E, 0x4A), Rgb(0x06, 0x12, 0x17)), // 冷杉
+        (Rgb(0x44, 0x28, 0x3C), Rgb(0x16, 0x0C, 0x14)), // 暗莓（偏红，不是紫）
+    };
+
+    private static Color Rgb(byte r, byte g, byte b) => Color.FromRgb(r, g, b);
 
     private static BitmapSource Render(string gameName)
     {
@@ -67,9 +97,7 @@ public static class CoverFactory
         using (var dc = visual.RenderOpen())
         {
             // 依据名字哈希挑选一组稳定的配色，保证同一游戏每次颜色一致
-            var hue = StableHash(gameName) % 360;
-            var top = FromHsl(hue, 0.45, 0.32);
-            var bottom = FromHsl((hue + 40) % 360, 0.55, 0.12);
+            var (top, bottom) = PickColors(gameName);
 
             dc.DrawRectangle(
                 new LinearGradientBrush(top, bottom, 90),
@@ -133,34 +161,4 @@ public static class CoverFactory
         }
     }
 
-    private static Color FromHsl(double h, double s, double l)
-    {
-        h = ((h % 360) + 360) % 360 / 360.0;
-        double r, g, b;
-
-        if (s == 0)
-        {
-            r = g = b = l;
-        }
-        else
-        {
-            var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-            var p = 2 * l - q;
-            r = HueToRgb(p, q, h + 1.0 / 3);
-            g = HueToRgb(p, q, h);
-            b = HueToRgb(p, q, h - 1.0 / 3);
-        }
-
-        return Color.FromRgb((byte)(r * 255), (byte)(g * 255), (byte)(b * 255));
-    }
-
-    private static double HueToRgb(double p, double q, double t)
-    {
-        if (t < 0) t += 1;
-        if (t > 1) t -= 1;
-        if (t < 1.0 / 6) return p + (q - p) * 6 * t;
-        if (t < 1.0 / 2) return q;
-        if (t < 2.0 / 3) return p + (q - p) * (2.0 / 3 - t) * 6;
-        return p;
-    }
 }

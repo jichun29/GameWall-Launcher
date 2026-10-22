@@ -82,8 +82,10 @@ public sealed class LibraryService
         var removed = _games.Remove(entry);
         if (removed)
         {
-            // 顺手删掉本项目生成的封面副本，避免 covers 目录越攒越多
+            // 顺手删掉本项目生成的封面副本与图标缓存，
+            // 否则 covers / icons 目录会随增删越攒越多，全是没人引用的孤儿文件
             TryDeleteCover(entry);
+            TryDeleteIcon(entry);
             Save();
         }
 
@@ -104,6 +106,36 @@ public sealed class LibraryService
         catch (Exception ex)
         {
             Logger.Error("删除封面副本失败", ex);
+        }
+    }
+
+    /// <summary>
+    /// 删除这个游戏在 icons 缓存目录里的图标文件。
+    /// 文件名格式是 "{游戏 Id}_{时间戳}.png"，同一个 Id 可能因为 exe 被更新
+    /// 而存在多份，所以按前缀扫一遍，全部清掉。
+    /// </summary>
+    private static void TryDeleteIcon(GameEntry entry)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(entry.Id) || !Directory.Exists(AppPaths.Icons))
+            {
+                return;
+            }
+
+            var prefix = entry.Id + "_";
+            foreach (var file in Directory.EnumerateFiles(AppPaths.Icons, "*.png"))
+            {
+                var name = Path.GetFileName(file);
+                if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Delete(file);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("删除图标缓存失败", ex);
         }
     }
 

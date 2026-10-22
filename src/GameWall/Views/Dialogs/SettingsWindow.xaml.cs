@@ -21,12 +21,20 @@ public partial class SettingsWindow : Window
     private readonly AppSettings _target;
     private AppSettings _working;
 
+    // 打开窗口时的主题与强调色。主题是实时预览的，点「取消」必须能还原回去，
+    // 否则用户试了一下浅色然后取消，界面会停在浅色但配置里还是深色。
+    private readonly string _originalTheme;
+    private readonly string _originalAccent;
+
     public SettingsWindow(AppSettings settings)
     {
         InitializeComponent();
 
         _target = settings ?? throw new ArgumentNullException(nameof(settings));
         _working = CloneOf(settings);
+
+        _originalTheme = _target.Theme;
+        _originalAccent = _target.AccentColor;
 
         BindToUi();
         LivePreview();
@@ -657,6 +665,10 @@ public partial class SettingsWindow : Window
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
+        // 主题和强调色是边选边预览的，取消时要把界面上的预览也撤掉
+        ThemeManager.Apply(_originalTheme);
+        ThemeManager.ApplyAccent(_originalAccent);
+
         DialogResult = false;
         Close();
     }

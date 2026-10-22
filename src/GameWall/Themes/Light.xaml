@@ -16,8 +16,8 @@
     <!-- 浅色下这层「冷光」非常淡，只用来避免整片死白 -->
     <RadialGradientBrush x:Key="Brush.PageGlow" GradientOrigin="0.78,0.12"
                          Center="0.78,0.12" RadiusX="0.95" RadiusY="0.95">
-        <GradientStop Color="#22BBD0F0" Offset="0" />
-        <GradientStop Color="#0AD6E4F7" Offset="0.42" />
+        <GradientStop Color="#22B8D2E8" Offset="0" />
+        <GradientStop Color="#0AD8E6F4" Offset="0.42" />
         <GradientStop Color="#00000000" Offset="1" />
     </RadialGradientBrush>
 
@@ -50,20 +50,21 @@
 
     <SolidColorBrush x:Key="Brush.Accent" Color="#1668E3" />
     <SolidColorBrush x:Key="Brush.AccentSoft" Color="#261668E3" />
-    <SolidColorBrush x:Key="Brush.AccentAlt" Color="#7C3AED" />
+    <!-- 次强调色：琥珀金，只做点缀；不跨到紫色（青紫渐变是典型的 AI 生成感配色） -->
+    <SolidColorBrush x:Key="Brush.AccentAlt" Color="#C2761A" />
     <SolidColorBrush x:Key="Brush.AccentGlow" Color="#331668E3" />
 
     <LinearGradientBrush x:Key="Brush.AccentGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#0E9FD8" Offset="0" />
-        <GradientStop Color="#1668E3" Offset="0.55" />
-        <GradientStop Color="#7C3AED" Offset="1" />
+        <GradientStop Color="#2AA8DC" Offset="0" />
+        <GradientStop Color="#1668E3" Offset="0.52" />
+        <GradientStop Color="#0B3E8C" Offset="1" />
     </LinearGradientBrush>
 
     <LinearGradientBrush x:Key="Brush.AccentLine" StartPoint="0,0" EndPoint="1,0">
         <GradientStop Color="#001668E3" Offset="0" />
-        <GradientStop Color="#991668E3" Offset="0.35" />
-        <GradientStop Color="#7C7C3AED" Offset="0.72" />
-        <GradientStop Color="#007C3AED" Offset="1" />
+        <GradientStop Color="#991668E3" Offset="0.38" />
+        <GradientStop Color="#8CC2761A" Offset="0.86" />
+        <GradientStop Color="#00C2761A" Offset="1" />
     </LinearGradientBrush>
 
     <SolidColorBrush x:Key="Brush.Danger" Color="#D92C4B" />
