@@ -676,6 +676,12 @@ public sealed class MainViewModel : ObservableObject
     public void SaveSettings() => _settings.Save();
 
     /// <summary>
+    /// 保存游戏库。后台预热补出来的 IconPath 走这条路径落盘，
+    /// 不能错调 SaveSettings —— 那样图标缓存信息下次启动还得重新提取。
+    /// </summary>
+    public void SaveLibrary() => _library.Save();
+
+    /// <summary>
     /// 通知界面「主题相关的设置可能整体变了」。
     /// 主窗口背景色绑定的是 Settings.BackgroundColor（空值表示跟随主题），
     /// 系统深浅色切换后必须重新求值，否则背景会停在旧颜色上。

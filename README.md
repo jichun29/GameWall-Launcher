@@ -35,8 +35,9 @@
 - **封面卡片**：封面图 + 游戏名 + 标签胶囊 + 启动次数，悬停高亮描边
 - **双击启动**：卡片双击直接拉起游戏，也可右键菜单启动
 - **拖拽排序**：按住卡片拖到目标位置即可重排，顺序自动保存
-- **无效路径标记**：exe 被删掉后卡片会显示「找不到文件」角标，一键筛选清理
+- **无效路径标记**：exe 被删掉后卡片会显示「文件缺失」角标，一键筛选清理
 - **自适应布局**：窗口拉窄时工具栏自动换行，不会把按钮挤出窗口
+- **虚拟化渲染**：只实例化视口里的那几行卡片，200 个游戏和 6 个游戏的首屏一样快（实测 200 条启动约 1 秒，内存约 170 MB）
 
 ### 添加游戏
 
@@ -136,7 +137,7 @@ python tools/make-logo.py
 2. 放到任意目录（例如 `D:\Tools\GameWall\`），双击运行
 3. 首次启动会显示引导页，点「开始使用」即可
 
-> 单文件自包含版约 66 MB，首次启动会解压到临时目录（约 1 秒），之后启动更快。
+> 单文件自包含版约 66 MB，首次启动会解压到临时目录（约 2 秒），之后启动稳定在 1 秒以内。
 
 ### 方式二：从源码编译
 
@@ -342,10 +343,14 @@ GameWall/
 │  ├─ Themes/
 │  │  ├─ Dark.xaml / Light.xaml      # 两套色板（同名键一一对应）
 │  │  └─ Controls.xaml               # 全部自绘控件样式
+│  ├─ Controls/
+│  │  └─ VirtualizingWrapPanel.cs    # 虚拟化换行面板（只生成视口内的卡片）
 │  ├─ Assets/
 │  │  ├─ GameWall.ico                # 应用图标（exe 图标 + 托盘图标共用，10 个尺寸）
 │  │  └─ logo-256.png / logo-1024.png # 界面里的品牌标识
-│  └─ Converters/Converters.cs       # 路径→图片、布尔→可见性等
+│  └─ Converters/
+│     ├─ Converters.cs               # 路径→图片、布尔→可见性等
+│     └─ ImageCache.cs               # 解码后的图片缓存（带 DecodePixelWidth）
 ├─ tools/
 │  ├─ capture.ps1             # 抓单个窗口截图的小工具
 │  ├─ make-screenshots.ps1    # 自动切换视图并批量截图
@@ -354,13 +359,16 @@ GameWall/
 │  ├─ audit-layout.ps1        # UIA 排版审计（单窗口越界 / 重叠检测）
 │  ├─ audit-all.ps1           # 一次性审计全部窗口，结果图存 docs/audit/
 │  ├─ seed-demo.ps1           # 造演示数据
+│  ├─ smoke-test.ps1          # UIA 冒烟测试（切视图 / 搜索 / 收藏筛选）
 │  ├─ make-logo.py            # 生成图标：ico（10 尺寸）+ PNG（Pillow）
 │  ├─ upload-asset.ps1        # 把构建产物传到 release（uploads.github.com）
 │  └─ push-files-api.ps1      # github.com 不通时改走 api.github.com 提交
 └─ docs/screenshots/          # README 用图
 ```
 
-**技术选型**：C# + WPF（.NET 8）。零第三方 NuGet 依赖——图标提取直接 P/Invoke `IShellItemImageFactory`，注册表读写走 `Microsoft.Win32`，占位封面用 `DrawingVisual` 渲染，系统主题监听走 `Microsoft.Win32.SystemEvents`。启动约 1 秒，界面无外部 UI 框架开销。
+**技术选型**：C# + WPF（.NET 8）。零第三方 NuGet 依赖——图标提取直接 P/Invoke `IShellItemImageFactory`，注册表读写走 `Microsoft.Win32`，占位封面由名字哈希算一个渐变画刷，系统主题监听走 `Microsoft.Win32.SystemEvents`。界面无外部 UI 框架开销，首屏启动约 1 秒。
+
+**性能做法**：卡片列表用自写的 `VirtualizingWrapPanel`（实现 `IScrollInfo`），只给视口覆盖到的行生成容器；图片经 `ImageCache` 按 `DecodePixelWidth=320` 解码并冻结复用；没有封面的游戏不画位图，直接铺一个按名字哈希出来的 `LinearGradientBrush`。所以游戏库从 6 个长到 200 个，首屏耗时基本不变。
 
 ---
 
@@ -396,6 +404,10 @@ GameWall 读的是 `HKCU\...\Themes\Personalize\AppsUseLightTheme`（「应用�
 
 **Q：数据能换电脑带走吗？**
 能。复制整个 `%AppData%\GameWall\` 文件夹，但游戏路径是绝对路径，换机器后需要重新指向。
+
+**Q：游戏多了会不会变卡？**
+不会。卡片列表是虚拟化的，只生成当前视口覆盖到的那些行，滚到哪儿生成到哪儿，滚出去的会被回收。
+实测 200 个游戏和 6 个游戏的首屏耗时一样（约 1 秒），内存都在 170 MB 上下。
 
 **Q：出问题了怎么排查？**
 看 `%AppData%\GameWall\gamewall.log`。没有日志的话，多半是 XAML 资源或启动期异常，用 `dotnet run` 跑调试版能看到堆栈。

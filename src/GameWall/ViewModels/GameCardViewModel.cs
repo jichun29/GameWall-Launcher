@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Windows.Media;
 using GameWall.Models;
 using GameWall.Services;
 
@@ -28,7 +29,10 @@ public sealed class GameCardViewModel : ObservableObject
         ToggleFavoriteCommand = new RelayCommand(() => Host?.ToggleFavorite(this));
         RemoveCommand = new RelayCommand(() => Host?.RemoveWithConfirm(this));
 
-        EnsureVisuals();
+        // 构造时只做「不碰 Shell」的轻量检查：清掉失效的封面路径。
+        // 从 exe 提取图标要过 COM（IShellItemImageFactory），几十个游戏就会把
+        // 首屏拖到 2 秒以上，所以留给 WarmUpVisualsAsync 在后台补。
+        EnsureVisuals(allowExtractIcon: false);
     }
 
     public GameEntry Entry { get; }
@@ -82,9 +86,9 @@ public sealed class GameCardViewModel : ObservableObject
     /// <summary>文件缺失（被卸载或移动过）时卡片会显示「丢失」角标。</summary>
     public bool IsMissing => !Entry.Exists;
 
-    private string? _placeholderImage;
+    private Brush? _placeholderBrush;
 
-    /// <summary>卡片封面：优先自定义封面 → exe 图标 → 首字渐变占位图。</summary>
+    /// <summary>卡片封面：优先自定义封面 → exe 图标 → 空（由 PlaceholderBrush 兜底）。</summary>
     public string PrimaryImage
     {
         get
@@ -99,10 +103,16 @@ public sealed class GameCardViewModel : ObservableObject
                 return Entry.IconPath;
             }
 
-            _placeholderImage ??= CoverFactory.CreatePlaceholder(Entry.Name, Entry.Id) ?? string.Empty;
-            return _placeholderImage;
+            return string.Empty;
         }
     }
+
+    /// <summary>
+    /// 没有封面也没有图标时铺在卡片底下的渐变。直接在内存里算，不落盘、不编码 PNG，
+    /// 绑定期间的开销可以忽略（早期版本这里会现渲染一张 480×640 的图，几十张卡片就是半秒）。
+    /// </summary>
+    public Brush PlaceholderBrush =>
+        _placeholderBrush ??= CoverFactory.CreatePlaceholderBrush(Entry.Name);
 
     /// <summary>只有从 exe 取到的小图标时才把它当「徽标」叠在封面上。</summary>
     public bool HasIconBadge =>
@@ -185,12 +195,18 @@ public sealed class GameCardViewModel : ObservableObject
     /// 补齐缺失的视觉资源：没有封面就生成占位图，没有图标就从 exe 提取。
     /// 返回 true 表示有字段被更新（调用方需要保存库）。
     /// </summary>
-    public bool EnsureVisuals(bool forceRefresh = false)
+    /// <param name="forceRefresh">true 时无视已有缓存，重新提取图标</param>
+    /// <param name="allowExtractIcon">
+    /// 是否允许走 Shell 提取图标。构造卡片时传 false，把这一步留给后台预热，
+    /// 避免几十张卡片排队过 COM 把首屏拖慢。
+    /// </param>
+    public bool EnsureVisuals(bool forceRefresh = false, bool allowExtractIcon = true)
     {
         var changed = false;
 
         // 图标：只有指向 exe 的游戏才提取
-        if ((forceRefresh || string.IsNullOrWhiteSpace(Entry.IconPath) || !File.Exists(Entry.IconPath))
+        if (allowExtractIcon
+            && (forceRefresh || string.IsNullOrWhiteSpace(Entry.IconPath) || !File.Exists(Entry.IconPath))
             && Entry.LaunchKind == LaunchKind.Executable
             && !string.IsNullOrWhiteSpace(Entry.ExecutablePath)
             && File.Exists(Entry.ExecutablePath))
@@ -225,6 +241,7 @@ public sealed class GameCardViewModel : ObservableObject
         OnPropertyChanged(nameof(Source));
         OnPropertyChanged(nameof(IsMissing));
         OnPropertyChanged(nameof(PrimaryImage));
+        OnPropertyChanged(nameof(PlaceholderBrush));
         OnPropertyChanged(nameof(HasIconBadge));
         OnPropertyChanged(nameof(IconImage));
         OnPropertyChanged(nameof(UsesPlaceholder));

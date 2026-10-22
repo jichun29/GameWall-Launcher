@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $tok = [System.IO.File]::ReadAllText("$env:TEMP\gw_tok.txt")
 
 $repoRoot = Split-Path -Parent $PSScriptRoot

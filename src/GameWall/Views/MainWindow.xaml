@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:conv="clr-namespace:GameWall.Converters"
         xmlns:vm="clr-namespace:GameWall.ViewModels"
+        xmlns:ctl="clr-namespace:GameWall.Controls"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="GameWall"
@@ -118,22 +119,20 @@
                     </Border.Effect>
 
                     <Grid>
-                        <!-- 3:4 封面区域 -->
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="4*" />
-                                <RowDefinition Height="5*" />
-                            </Grid.RowDefinitions>
-                            <Rectangle Grid.RowSpan="2" Fill="{DynamicResource Brush.SurfaceAlt}" />
-                            <Image Grid.RowSpan="2"
-                                   Source="{Binding PrimaryImage, Converter={StaticResource PathToImage}}"
+                        <!-- 封面区域。高度跟着卡片宽度走（正方形封面），
+                             不能用星号行——虚拟化面板按内容量高时星号行会塌掉，
+                             有封面的卡片和没封面的卡片就会高矮不一。 -->
+                        <Grid Height="{Binding DataContext.Settings.CardWidth, RelativeSource={RelativeSource AncestorType=Window}}">
+                            <Rectangle Fill="{DynamicResource Brush.SurfaceAlt}" />
+                            <Rectangle Fill="{Binding PlaceholderBrush}" />
+                            <Image Source="{Binding PrimaryImage, Converter={StaticResource PathToImage}}"
                                    Stretch="UniformToFill"
                                    RenderOptions.BitmapScalingMode="HighQuality" />
-                            <TextBlock Grid.RowSpan="2"
-                                       Text="{Binding InitialGlyph}"
+                            <TextBlock Text="{Binding InitialGlyph}"
                                        FontSize="64"
                                        FontWeight="Bold"
-                                       Foreground="{DynamicResource Brush.TextFaint}"
+                                       Foreground="White"
+                                       Opacity="0.72"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"
                                        Visibility="{Binding UsesPlaceholder, Converter={StaticResource BoolToVis}}" />
@@ -234,12 +233,13 @@
                     <Border Grid.Row="0" CornerRadius="10,10,0,0" ClipToBounds="True">
                         <Grid>
                             <Rectangle Fill="{DynamicResource Brush.SurfaceAlt}" />
+                            <Rectangle Fill="{Binding PlaceholderBrush}" />
                             <Image Source="{Binding PrimaryImage, Converter={StaticResource PathToImage}}"
                                    Stretch="UniformToFill"
                                    RenderOptions.BitmapScalingMode="HighQuality" />
                             <TextBlock Text="{Binding InitialGlyph}"
                                        FontSize="34" FontWeight="Bold"
-                                       Foreground="{DynamicResource Brush.TextFaint}"
+                                       Foreground="White" Opacity="0.72"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Visibility="{Binding UsesPlaceholder, Converter={StaticResource BoolToVis}}" />
                         </Grid>
@@ -282,9 +282,10 @@
                     <Border Grid.Column="0" Width="44" Height="56" CornerRadius="6" ClipToBounds="True"
                             Background="{DynamicResource Brush.SurfaceAlt}">
                         <Grid>
+                            <Rectangle Fill="{Binding PlaceholderBrush}" />
                             <Image Source="{Binding PrimaryImage, Converter={StaticResource PathToImage}}" Stretch="UniformToFill" />
                             <TextBlock Text="{Binding InitialGlyph}" FontSize="20" FontWeight="Bold"
-                                       Foreground="{DynamicResource Brush.TextFaint}"
+                                       Foreground="White" Opacity="0.72"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Visibility="{Binding UsesPlaceholder, Converter={StaticResource BoolToVis}}" />
                         </Grid>
@@ -467,12 +468,17 @@
             <Grid Grid.Row="2">
                 <!-- 大图墙 -->
                 <ScrollViewer Style="{StaticResource ScrollViewer.Clean}"
+                              CanContentScroll="True"
                               Visibility="{Binding IsWallMode, Converter={StaticResource BoolToVis}}"
                               Padding="14,14,14,24">
-                    <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource Card.Wall}">
+                    <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource Card.Wall}"
+                                  VirtualizingPanel.IsVirtualizing="True">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal" />
+                                <!-- 只生成视口里的那几行，游戏再多首屏也不变慢。
+                                     CardWidth 直接取设置里的卡片宽度，面板第一轮就能算对列数 -->
+                                <ctl:VirtualizingWrapPanel CardMargin="8"
+                                                           CardWidth="{Binding Settings.CardWidth}" />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                     </ItemsControl>
@@ -480,19 +486,29 @@
 
                 <!-- 列表模式 -->
                 <ScrollViewer Style="{StaticResource ScrollViewer.Clean}"
+                              CanContentScroll="True"
                               Visibility="{Binding IsListMode, Converter={StaticResource BoolToVis}}"
                               Padding="16,14,16,24">
-                    <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource Card.List}" />
+                    <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource Card.List}"
+                                  VirtualizingPanel.IsVirtualizing="True">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ctl:VirtualizingWrapPanel FullWidth="True" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
                 </ScrollViewer>
 
                 <!-- 紧凑模式 -->
                 <ScrollViewer Style="{StaticResource ScrollViewer.Clean}"
+                              CanContentScroll="True"
                               Visibility="{Binding IsCompactMode, Converter={StaticResource BoolToVis}}"
                               Padding="14,14,14,24">
-                    <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource Card.Compact}">
+                    <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource Card.Compact}"
+                                  VirtualizingPanel.IsVirtualizing="True">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal" />
+                                <ctl:VirtualizingWrapPanel />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                     </ItemsControl>

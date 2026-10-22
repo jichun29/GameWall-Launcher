@@ -96,6 +96,8 @@ public partial class MainWindow : Window
         try
         {
             var changed = false;
+            var index = 0;
+
             foreach (var card in _vm.Cards)
             {
                 if (card.EnsureVisuals())
@@ -103,11 +105,19 @@ public partial class MainWindow : Window
                     changed = true;
                     card.Refresh();
                 }
+
+                // 提取图标要过 shell COM，几十个游戏连做会把界面顶住。
+                // 每 4 张让出一次，滚动和点击都不受影响。
+                if (++index % 4 == 0)
+                {
+                    await Task.Delay(1);
+                }
             }
 
             if (changed)
             {
-                _vm.SaveSettings();
+                // 补出来的是 IconPath，属于游戏库数据，要写 library.json
+                _vm.SaveLibrary();
             }
         }
         catch (Exception ex)

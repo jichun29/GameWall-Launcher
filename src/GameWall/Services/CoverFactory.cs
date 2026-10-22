@@ -43,6 +43,24 @@ public static class CoverFactory
         }
     }
 
+    /// <summary>
+    /// 直接在内存里造一个和占位封面同色系的渐变画刷，给卡片的背景层用。
+    ///
+    /// 相比 CreatePlaceholder 要走 RenderTargetBitmap + PNG 编码（单张 20ms 上下），
+    /// 这里只是算几个颜色再 new 一个画刷，几十张卡片也就是零点几毫秒，
+    /// 首屏再也不会因为这层兜底视觉卡住。
+    /// </summary>
+    public static Brush CreatePlaceholderBrush(string gameName)
+    {
+        var hue = StableHash(gameName) % 360;
+        var top = FromHsl(hue, 0.45, 0.32);
+        var bottom = FromHsl((hue + 40) % 360, 0.55, 0.12);
+
+        var brush = new LinearGradientBrush(top, bottom, 90);
+        brush.Freeze();
+        return brush;
+    }
+
     private static BitmapSource Render(string gameName)
     {
         var visual = new DrawingVisual();
