@@ -135,7 +135,7 @@ python tools/make-logo.py
 
 ### 方式一：下载即用（推荐）
 
-1. 到 [Releases](../../releases) 下载 `GameWall.exe`
+1. 到 [Releases](https://github.com/jichun29/GameWall-Launcher/releases) 下载 `GameWall.exe`
 2. 放到任意目录（例如 `D:\Tools\GameWall\`），双击运行
 3. 首次启动会显示引导页，点「开始使用」即可
 
