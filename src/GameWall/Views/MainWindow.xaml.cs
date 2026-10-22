@@ -499,19 +499,28 @@ public partial class MainWindow : Window
         var added = 0;
         var dup = 0;
         var failed = 0;
+        var rejected = 0;
 
         foreach (var raw in files)
         {
             try
             {
-                var exe = ShortcutResolver.ResolveToExecutable(raw);
-                if (exe is null)
+                var resolved = ShortcutResolver.Resolve(raw);
+                if (resolved is null)
                 {
                     failed++;
                     continue;
                 }
 
-                if (_vm.AddFromExecutable(exe, null, "拖放添加"))
+                // 拖进来一个 Steam 客户端、平台启动器时提示用户，而不是默默加进墙里
+                if (resolved.Kind == LaunchKind.Executable
+                    && GameScanner.IsLikelyPlatformOrTool(resolved.ExecutablePath))
+                {
+                    rejected++;
+                    continue;
+                }
+
+                if (_vm.AddResolved(resolved))
                 {
                     added++;
                 }
@@ -527,7 +536,7 @@ public partial class MainWindow : Window
             }
         }
 
-        if (added == 0 && dup == 0 && failed == 0)
+        if (added == 0 && dup == 0 && failed == 0 && rejected == 0)
         {
             return;
         }
@@ -535,6 +544,7 @@ public partial class MainWindow : Window
         var parts = new List<string>();
         if (added > 0) parts.Add($"新增 {added} 个");
         if (dup > 0) parts.Add($"已存在 {dup} 个");
+        if (rejected > 0) parts.Add($"看起来不是游戏 {rejected} 个");
         if (failed > 0) parts.Add($"无法识别 {failed} 个");
 
         MessageBox.Show(string.Join("，", parts) + "。", "GameWall",
@@ -548,7 +558,7 @@ public partial class MainWindow : Window
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
             Title = "选择游戏可执行文件",
-            Filter = "可执行文件 (*.exe)|*.exe|快捷方式 (*.lnk)|*.lnk|所有文件 (*.*)|*.*",
+            Filter = "游戏程序 (*.exe;*.url;*.lnk)|*.exe;*.url;*.lnk|可执行文件 (*.exe)|*.exe|快捷方式 (*.lnk;*.url)|*.lnk;*.url|所有文件 (*.*)|*.*",
             Multiselect = true,
             CheckFileExists = true,
         };
@@ -559,10 +569,17 @@ public partial class MainWindow : Window
         }
 
         var added = 0;
+        var failed = 0;
         foreach (var file in dialog.FileNames)
         {
-            var exe = ShortcutResolver.ResolveToExecutable(file);
-            if (exe is not null && _vm.AddFromExecutable(exe))
+            var resolved = ShortcutResolver.Resolve(file);
+            if (resolved is null)
+            {
+                failed++;
+                continue;
+            }
+
+            if (_vm.AddResolved(resolved))
             {
                 added++;
             }
@@ -570,8 +587,10 @@ public partial class MainWindow : Window
 
         if (added == 0)
         {
-            MessageBox.Show("这些文件已经在游戏墙里了。", "GameWall",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            var message = failed > 0
+                ? "没能从这些文件里认出可启动的游戏。\n\nSteam/Epic/GOG 的快捷方式可以直接拖进来，会自动识别成平台启动。"
+                : "这些文件已经在游戏墙里了。";
+            MessageBox.Show(message, "GameWall", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 

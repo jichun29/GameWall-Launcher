@@ -18,8 +18,8 @@
     <AssemblyTitle>GameWall</AssemblyTitle>
     <Product>GameWall</Product>
     <Description>A lightweight Windows game launcher with visual wall-style game management</Description>
-    <Version>1.0.0</Version>
-    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.4.0</Version>
+    <FileVersion>1.4.0.0</FileVersion>
     <!--
       单文件发布参数（dotnet publish 时生效）。
       SelfContained=true 表示把 .NET 运行时一起打进去，用户机器不需要预装 .NET，双击即用。

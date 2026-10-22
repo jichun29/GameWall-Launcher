@@ -125,9 +125,21 @@
                         <Grid Height="{Binding DataContext.Settings.CardWidth, RelativeSource={RelativeSource AncestorType=Window}}">
                             <Rectangle Fill="{DynamicResource Brush.SurfaceAlt}" />
                             <Rectangle Fill="{Binding PlaceholderBrush}" />
+                            <!-- 只有用户自己指定的封面才满铺；exe 图标是 32×32 的小图，
+                                 拉满会糊成一团黑影，所以下面单独当徽标居中摆。 -->
                             <Image Source="{Binding PrimaryImage, Converter={StaticResource PathToImage}}"
                                    Stretch="UniformToFill"
-                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
+                            <Border Width="76" Height="76" CornerRadius="16"
+                                    Background="#33FFFFFF"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Visibility="{Binding ShowIcon, Converter={StaticResource BoolToVis}}">
+                                <Image Source="{Binding IconImage, Converter={StaticResource PathToImage}}"
+                                       Width="60" Height="60"
+                                       Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                            </Border>
                             <TextBlock Text="{Binding InitialGlyph}"
                                        FontSize="64"
                                        FontWeight="Bold"
@@ -138,8 +150,10 @@
                                        Visibility="{Binding UsesPlaceholder, Converter={StaticResource BoolToVis}}" />
                         </Grid>
 
-                        <!-- 底部渐变遮罩 + 文字 -->
-                        <Rectangle Fill="{DynamicResource Brush.CardOverlay}" VerticalAlignment="Bottom" Height="130" />
+                        <!-- 底部渐变遮罩 + 文字。只在有真实封面时才压暗，
+                             否则会把居中摆的图标徽标和占位渐变一起糊掉。 -->
+                        <Rectangle Fill="{DynamicResource Brush.CardOverlay}" VerticalAlignment="Bottom" Height="130"
+                                   Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
 
                         <!-- 左上角角标 -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8">
@@ -236,7 +250,15 @@
                             <Rectangle Fill="{Binding PlaceholderBrush}" />
                             <Image Source="{Binding PrimaryImage, Converter={StaticResource PathToImage}}"
                                    Stretch="UniformToFill"
-                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
+                            <!-- 紧凑卡片里的图标只有 44×44 的位置，直接把 32×32 的图标摆进去也不会糊 -->
+                            <Image Source="{Binding IconImage, Converter={StaticResource PathToImage}}"
+                                   Width="44" Height="44"
+                                   Stretch="Uniform"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Visibility="{Binding ShowIcon, Converter={StaticResource BoolToVis}}" />
                             <TextBlock Text="{Binding InitialGlyph}"
                                        FontSize="34" FontWeight="Bold"
                                        Foreground="White" Opacity="0.72"
@@ -283,7 +305,17 @@
                             Background="{DynamicResource Brush.SurfaceAlt}">
                         <Grid>
                             <Rectangle Fill="{Binding PlaceholderBrush}" />
-                            <Image Source="{Binding PrimaryImage, Converter={StaticResource PathToImage}}" Stretch="UniformToFill" />
+                            <Image Source="{Binding PrimaryImage, Converter={StaticResource PathToImage}}"
+                                   Stretch="UniformToFill"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
+                            <!-- 列表里缩略图只有 44×56，图标按原样等比摆进去，不拉伸 -->
+                            <Image Source="{Binding IconImage, Converter={StaticResource PathToImage}}"
+                                   Width="32" Height="32"
+                                   Stretch="Uniform"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Visibility="{Binding ShowIcon, Converter={StaticResource BoolToVis}}" />
                             <TextBlock Text="{Binding InitialGlyph}" FontSize="20" FontWeight="Bold"
                                        Foreground="White" Opacity="0.72"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"

@@ -128,8 +128,14 @@ $tp = $fav.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
 $tp.Toggle()
 Start-Sleep -Milliseconds 900
 $favCount = (Get-Cards).Count
-if ($favCount -eq 0 -or $favCount -ge $total) { Fail "收藏筛选结果异常：$favCount / $total" }
-Ok "只看收藏 $favCount / $total"
+# 库是真实数据时可能一个收藏都没有，这时筛完就该是 0 张；
+# 有收藏时则必须是「少于总数」的真子集。
+if ($favCount -ge $total) { Fail "收藏筛选结果异常：$favCount / $total" }
+if ($favCount -eq 0) {
+    Ok "只看收藏（当前没有收藏，筛完 0 张）"
+} else {
+    Ok "只看收藏 $favCount / $total"
+}
 $tp.Toggle()
 Start-Sleep -Milliseconds 900
 if ((Get-Cards).Count -ne $total) { Fail "取消收藏筛选后应恢复 $total" }

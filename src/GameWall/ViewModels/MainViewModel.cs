@@ -320,8 +320,18 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>添加一个游戏（自动处理封面 / 图标）。返回 false 表示已存在。</summary>
     public bool AddGame(GameEntry entry)
     {
-        if (entry.LaunchKind == LaunchKind.Executable
-            && _library.FindByExecutable(entry.ExecutablePath) is not null)
+        // 去重：本地 exe 比路径，平台游戏比协议地址。
+        // 否则同一个 Steam 游戏既可能通过 exe 路径加进来，又可能通过
+        // steam:// 快捷方式加进来，墙上会出现两张一样的卡片。
+        if (!string.IsNullOrWhiteSpace(entry.LaunchUri))
+        {
+            if (_library.Games.Any(g => string.Equals(g.LaunchUri, entry.LaunchUri, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+        }
+        else if (entry.LaunchKind == LaunchKind.Executable
+                 && _library.FindByExecutable(entry.ExecutablePath) is not null)
         {
             return false;
         }
@@ -331,6 +341,10 @@ public sealed class MainViewModel : ObservableObject
             entry.Name = Path.GetFileNameWithoutExtension(entry.ExecutablePath);
         }
 
+        // 平台游戏顺手去本地 Steam 缓存里捞一张真封面。
+        // 这一步只读本地文件，不联网；捞不到就继续用渐变 + 图标/首字的占位方案。
+        TryAttachPlatformCover(entry);
+
         _library.Add(entry);
 
         var card = FindOrCreate(entry);
@@ -339,6 +353,35 @@ public sealed class MainViewModel : ObservableObject
 
         ReloadCards();
         return true;
+    }
+
+    /// <summary>
+    /// 把一次「拖入 / 选中 / 粘贴」的解析结果加入游戏库。
+    /// 与 <see cref="AddFromExecutable"/> 的区别是它支持平台协议
+    /// （Steam 的桌面快捷方式就是一个 steam:// 的 .url 文件）。
+    /// </summary>
+    public bool AddResolved(ResolvedLaunch resolved)
+    {
+        if (resolved is null || !resolved.IsUsable)
+        {
+            return false;
+        }
+
+        var entry = new GameEntry
+        {
+            Name = string.IsNullOrWhiteSpace(resolved.SuggestedName)
+                ? Path.GetFileNameWithoutExtension(resolved.ExecutablePath)
+                : resolved.SuggestedName,
+            LaunchKind = resolved.Kind,
+            ExecutablePath = resolved.ExecutablePath,
+            LaunchUri = resolved.LaunchUri,
+            WorkingDirectory = string.IsNullOrWhiteSpace(resolved.ExecutablePath)
+                ? string.Empty
+                : Path.GetDirectoryName(resolved.ExecutablePath) ?? string.Empty,
+            Source = string.IsNullOrWhiteSpace(resolved.Source) ? "手动添加" : resolved.Source,
+        };
+
+        return AddGame(entry);
     }
 
     /// <summary>从 exe 路径直接添加（手动添加 / 扫描结果复用）。</summary>
@@ -355,6 +398,29 @@ public sealed class MainViewModel : ObservableObject
         };
 
         return AddGame(entry);
+    }
+
+    /// <summary>
+    /// 给 Steam 游戏补上官方封面（从本地 appcache 里拷，不联网）。
+    /// 已经有封面、或者不是 Steam 游戏，直接跳过。
+    /// </summary>
+    private static void TryAttachPlatformCover(GameEntry entry)
+    {
+        if (!string.IsNullOrWhiteSpace(entry.CoverPath))
+        {
+            return;
+        }
+
+        if (entry.LaunchKind != LaunchKind.Steam || string.IsNullOrWhiteSpace(entry.LaunchUri))
+        {
+            return;
+        }
+
+        var cover = CoverArtService.TryFetchSteamCover(entry.LaunchUri, entry.Id);
+        if (!string.IsNullOrEmpty(cover))
+        {
+            entry.CoverPath = cover;
+        }
     }
 
     /// <summary>打开编辑窗口（卡片右键菜单 / 工具栏调用）。</summary>
@@ -582,6 +648,12 @@ public sealed class MainViewModel : ObservableObject
             var added = 0;
             var skipped = 0;
 
+            // 扫到的 exe 如果正好在某个平台（Steam / Epic / GOG）的安装目录里，
+            // 就把它登记成「平台游戏」而不是裸 exe：
+            //   · 启动时走 steam://rungameid/<id>，能正确触发 DRM 校验和云存档
+            //   · 名字用商店里的正式名称，而不是 PumpFish.exe 这种内部代号
+            var platformGames = BuildPlatformIndex();
+
             foreach (var candidate in candidates)
             {
                 if (token.IsCancellationRequested)
@@ -595,13 +667,29 @@ public sealed class MainViewModel : ObservableObject
                     continue;
                 }
 
+                // 已通过 Steam 快捷方式 / 平台导入加过同一个游戏的，按协议地址判重
+                var platform = MatchPlatformGame(candidate.FilePath, platformGames);
+                if (platform is not null
+                    && _library.Games.Any(g => string.Equals(g.LaunchUri, platform.LaunchUri, StringComparison.OrdinalIgnoreCase)))
+                {
+                    skipped++;
+                    continue;
+                }
+
                 var entry = new GameEntry
                 {
-                    Name = candidate.SuggestedName,
+                    Name = platform is not null && !string.IsNullOrWhiteSpace(platform.SuggestedName)
+                        ? platform.SuggestedName
+                        : candidate.SuggestedName,
                     ExecutablePath = candidate.FilePath,
-                    LaunchKind = LaunchKind.Executable,
-                    Source = "自动扫描",
+                    LaunchKind = platform?.Kind ?? LaunchKind.Executable,
+                    LaunchUri = platform?.LaunchUri ?? string.Empty,
+                    Source = platform is not null ? $"{platform.Platform} 扫描" : "自动扫描",
                 };
+
+                // 扫描出来的 Steam 游戏也顺手把本地缓存里的官方封面带上，
+                // 否则重扫一遍之后墙上会突然少几张封面
+                TryAttachPlatformCover(entry);
 
                 _library.Add(entry);
                 added++;
@@ -623,8 +711,7 @@ public sealed class MainViewModel : ObservableObject
     }
 
     private async Task ScanAsync()
-    {
-        try
+    {        try
         {
             var progress = new Progress<string>(text => BusyText = text);
             var (added, skipped) = await ScanAndImportAsync(progress).ConfigureAwait(true);
@@ -646,6 +733,51 @@ public sealed class MainViewModel : ObservableObject
             Logger.Error("自动扫描失败", ex);
             MessageBox.Show(ex.Message, "扫描失败", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+    }
+
+    // ── 平台游戏与扫描结果的对应关系 ────────────────────────
+
+    /// <summary>
+    /// 平台清单里「安装目录 → 平台游戏」的索引。
+    /// 扫描的时候拿 exe 的路径去比，命中就说明这个 exe 是某个平台装的游戏。
+    /// </summary>
+    private List<PlatformGame> BuildPlatformIndex()
+    {
+        try
+        {
+            return PlatformImportService.ReadAll()
+                .Where(g => !string.IsNullOrWhiteSpace(g.InstallDir))
+                .OrderByDescending(g => g.InstallDir.Length)   // 长的优先，避免父目录抢先匹配
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("读取平台游戏清单失败", ex);
+            return new List<PlatformGame>();
+        }
+    }
+
+    /// <summary>
+    /// 判断 exe 是不是某个平台装的游戏。命中返回该平台游戏（带官方名与启动 URI）。
+    /// </summary>
+    private static PlatformGame? MatchPlatformGame(string exePath, List<PlatformGame> platformGames)
+    {
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            return null;
+        }
+
+        foreach (var game in platformGames)
+        {
+            if (exePath.StartsWith(game.InstallDir, StringComparison.OrdinalIgnoreCase)
+                && (exePath.Length == game.InstallDir.Length
+                    || exePath[game.InstallDir.Length] == '\\'))
+            {
+                return game;
+            }
+        }
+
+        return null;
     }
 
     // ── 拖拽排序 ────────────────────────────────────────────

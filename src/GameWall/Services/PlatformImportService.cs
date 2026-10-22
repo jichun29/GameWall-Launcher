@@ -76,6 +76,15 @@ public static class PlatformImportService
                             continue;
                         }
 
+                        // Steam 自己会在库里放两样「不是游戏」的东西：
+                        //   - 228980 Steamworks Common Redistributables（运行库合集）
+                        //   - 名字里带 "Steamworks" 的各种共享组件
+                        if (appId == "228980"
+                            || name.StartsWith("Steamworks", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
                         var fullInstall = string.IsNullOrWhiteSpace(installDir)
                             ? string.Empty
                             : Path.Combine(steamApps, "common", installDir);
@@ -138,6 +147,13 @@ public static class PlatformImportService
 
         return null;
     }
+
+    /// <summary>供 GameScanner 复用：找到 Steam 安装根目录。</summary>
+    public static string? ReadSteamRootPublic() => ReadSteamRoot();
+
+    /// <summary>供 GameScanner 复用：读取所有 Steam 库根目录。</summary>
+    public static List<string> ReadSteamLibrariesPublic(string steamRoot) =>
+        ReadSteamLibraries(steamRoot).ToList();
 
     private static IEnumerable<string> ReadSteamLibraries(string steamRoot)
     {
@@ -287,6 +303,82 @@ public static class PlatformImportService
         all.AddRange(ReadEpic());
         all.AddRange(ReadGog());
         return all;
+    }
+
+    // ── 按 ID 反查（拖入 steam:// 快捷方式时用）─────────────
+    //
+    // 解析快捷方式不像点「平台导入」那样需要全量列表，只查一个 AppID。
+    // 但每次拖入都重扫一遍所有库目录也没必要，所以加一层短期缓存。
+
+    private static List<PlatformGame>? _steamCache;
+    private static List<PlatformGame>? _epicCache;
+    private static List<PlatformGame>? _gogCache;
+    private static DateTime _cacheAt;
+    private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(2);
+
+    private static bool CacheExpired => DateTime.UtcNow - _cacheAt > CacheLifetime;
+
+    /// <summary>按 Steam AppID 查本地清单；查不到返回 null。</summary>
+    public static PlatformGame? FindSteamApp(string appId)
+    {
+        if (string.IsNullOrWhiteSpace(appId))
+        {
+            return null;
+        }
+
+        if (_steamCache is null || CacheExpired)
+        {
+            _steamCache = ReadSteam();
+            _cacheAt = DateTime.UtcNow;
+        }
+
+        return _steamCache.FirstOrDefault(g =>
+            string.Equals(g.AppId, appId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>按 Epic AppName 查安装清单。</summary>
+    public static PlatformGame? FindEpicApp(string appName)
+    {
+        if (string.IsNullOrWhiteSpace(appName))
+        {
+            return null;
+        }
+
+        if (_epicCache is null || CacheExpired)
+        {
+            _epicCache = ReadEpic();
+            _cacheAt = DateTime.UtcNow;
+        }
+
+        return _epicCache.FirstOrDefault(g =>
+            string.Equals(g.AppId, appName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>按 GOG 游戏 ID 查注册表。</summary>
+    public static PlatformGame? FindGogGame(string gameId)
+    {
+        if (string.IsNullOrWhiteSpace(gameId))
+        {
+            return null;
+        }
+
+        if (_gogCache is null || CacheExpired)
+        {
+            _gogCache = ReadGog();
+            _cacheAt = DateTime.UtcNow;
+        }
+
+        return _gogCache.FirstOrDefault(g =>
+            string.Equals(g.AppId, gameId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>安装/卸载游戏后让缓存失效。</summary>
+    public static void InvalidateCache()
+    {
+        _steamCache = null;
+        _epicCache = null;
+        _gogCache = null;
+        _cacheAt = DateTime.MinValue;
     }
 
     /// <summary>在安装目录里猜主程序：优先体积最大的 exe，其次名字最接近游戏名的。</summary>

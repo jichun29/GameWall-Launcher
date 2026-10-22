@@ -33,6 +33,8 @@
 
 - **三种视图**：大图墙（默认）/ 列表 / 紧凑，顶栏一键切换，选择会被记住
 - **封面卡片**：封面图 + 游戏名 + 标签胶囊 + 启动次数，悬停高亮描边
+- **封面与图标分开处理**：自己指定了封面就满铺；没封面但有 exe 图标时居中当徽标摆（32×32 的小图标不会被拉伸成黑块）；两者都没有才用按名字哈希生成的渐变底 + 首字
+- **Steam 游戏自动取官方封面**：从 Steam 自己的 `appcache\librarycache` 里找 600×900 竖版封面，纯本地读取，不联网
 - **双击启动**：卡片双击直接拉起游戏，也可右键菜单启动
 - **拖拽排序**：按住卡片拖到目标位置即可重排，顺序自动保存
 - **无效路径标记**：exe 被删掉后卡片会显示「文件缺失」角标，一键筛选清理
@@ -43,18 +45,18 @@
 
 | 方式 | 说明 |
 | --- | --- |
-| 手动添加 | 选 `.exe`，自动提取 256×256 图标作为封面 |
-| 拖拽添加 | 从资源管理器把 `.exe` / `.lnk` / `.url` 拖进窗口 |
+| 手动添加 | 选 `.exe` / `.lnk` / `.url`，自动提取 256×256 图标 |
+| 拖拽添加 | 从资源管理器把 `.exe` / `.lnk` / `.url` 拖进窗口（Steam 游戏快捷方式会自动识别成 `steam://` 启动） |
 | 粘贴添加 | `Ctrl+V` 直接粘贴剪贴板里的文件或路径文本 |
 | 搜索添加 | 输入游戏名，在指定目录里递归搜索匹配的 exe |
-| 自动扫描 | 扫描常见游戏目录，按体积和目录名打分排序，批量导入 |
+| 自动扫描 | 扫描常见游戏目录，自动剔除平台本体 / 启动器 / 运行库，同一游戏只留主程序 |
 | 平台导入 | 读取 Steam / Epic / GOG 已安装列表（走各平台官方启动 URI） |
 
 ### 管理与筛选
 
 - **右键菜单**：启动 / 打开安装目录 / 打开存档目录 / 编辑信息 / 收藏 / 移除
 - **编辑信息**：自定义名称、可执行文件、存档目录、标签、备注、封面
-- **封面**：选本地图片 / 用 exe 图标 / 清除（清除后回退到自动渐变占位封面）
+- **封面**：选本地图片 / 用 exe 图标 / 清除（清除后回退到居中图标徽标或自动渐变占位封面）
 - **标签系统**：逗号或空格分隔多标签，顶栏下拉按标签筛选
 - **实时搜索**：空格分词，多关键词 AND 匹配名称 / 标签 / 备注 / 来源
 - **收藏**：`★` 标记，可只看收藏
@@ -151,22 +153,29 @@ python tools/make-logo.py
 
 四种入口任选：
 
-1. 点工具栏 **＋ 添加游戏**，多选 `.exe`；
-2. 直接把桌面快捷方式 `.lnk` 拖进窗口；
+1. 点工具栏 **＋ 添加游戏**，可多选 `.exe` / `.lnk` / `.url`；
+2. 直接把桌面快捷方式拖进窗口（`.lnk` 指向 `steam.exe -applaunch <id>`、`.url` 内容是 `steam://rungameid/<id>` 时，会自动变成「Steam 游戏」并显示商店里的正式游戏名）；
 3. 复制文件后按 `Ctrl+V`，或直接粘贴一行 exe 路径；
 4. 点 **🔎 搜索添加**，输入名字（如 `elden`），从搜索结果里双击或勾选添加。
 
-添加后会自动提取 exe 图标做封面。想要更漂亮的大图封面：右键卡片 → **编辑信息** → **选择图片…**。
+添加后会自动提取 exe 图标，Steam 游戏还会顺手从本地缓存里取官方竖版封面。想要换成自己的图：右键卡片 → **编辑信息** → **选择图片…**。
 
 ### 自动扫描
 
-点工具栏 **⟳ 扫描**，会遍历设置里的「扫描目录」（默认自动探测各盘符下的 `Games`、`SteamLibrary\steamapps\common`、`Program Files\Epic Games` 等），
+点工具栏 **⟳ 扫描**，会遍历设置里的「扫描目录」（默认自动探测各盘符下的 `Games` / `SteamLibrary` / `游戏`，
+以及 Steam 注册表里登记的所有库目录的 `steamapps\common`、`Program Files\Epic Games`、`GOG Galaxy\Games` 等），
 
-- 过滤卸载器 / 运行库 / 反作弊等噪声 exe
-- 按「文件体积 + 目录名与 exe 名一致」打分排序
+- **先剔除「不是游戏的东西」**：卸载器、安装器、运行库（vcredist / UE4Prereq）、反作弊（EAC / BattlEye / Vanguard）、
+  崩溃上报、录制器、平台本体（`steam.exe`、`EpicGamesLauncher.exe`、`UbisoftExtension.exe`、`WeGame.exe` …）
+- **同一游戏只留主程序**：一个《英雄联盟》目录里有 90 多个 exe（大厅、启动器、录制器、反作弊、教练 AI），
+  按「路径里有没有 client/launcher/cross 这类目录 → 埋得深不深 → 体积」三档打分，只留 `Game\League of Legends.exe`
+- **名字取商店里的游戏名**：`steamapps\common\A Pond Hunt Demo\PumpFish.exe` 会显示成「A Pond Hunt Demo」而不是「PumpFish」
 - 跳过已添加的游戏，只导入新的
 
 目录、递归深度、最小 exe 体积都可以在 **⚙ 设置 → 扫描目录** 里调整。
+
+> 扫描只认「像游戏的 exe」。如果你手动把记事本、Photoshop 拖进来，GameWall 不会拦——
+> 手动添加永远以你的选择为准，自动扫描才做过滤。
 
 ### 平台导入
 
@@ -318,11 +327,12 @@ GameWall/
 │  │  ├─ LibraryService.cs    # 游戏列表的增删改排序
 │  │  ├─ SettingsService.cs   # 设置读写 + 非法值修正 + 旧版本迁移
 │  │  ├─ IconService.cs       # 用 IShellItemImageFactory 提取高清图标
-│  │  ├─ CoverFactory.cs      # 没有封面时按名字哈希生成渐变占位图
+│  │  ├─ CoverFactory.cs      # 没有封面时按名字哈希算渐变画刷
+│  │  ├─ CoverArtService.cs   # 从 Steam 本地缓存里找官方竖版封面
 │  │  ├─ LaunchService.cs     # 按类型启动 exe / steam:// / epic / gog
 │  │  ├─ GameScanner.cs       # 递归扫描 + 噪声过滤 + 打分排序
 │  │  ├─ PlatformImportService.cs  # 读 Steam/Epic/GOG 已装列表
-│  │  ├─ ShortcutResolver.cs  # .lnk / .url 解析成真实 exe
+│  │  ├─ ShortcutResolver.cs  # .lnk / .url 解析成 exe 或平台启动协议
 │  │  ├─ AutoStartService.cs  # 开机自启注册表操作
 │  │  ├─ SystemThemeWatcher.cs# 读注册表 + 监听系统深浅色切换
 │  │  ├─ ThemeManager.cs      # 主题与强调色热切换
@@ -395,6 +405,16 @@ GameWall 读的是 `HKCU\...\Themes\Personalize\AppsUseLightTheme`（「应用�
 
 **Q：平台导入读不到游戏？**
 只读取本机已安装的列表。Steam 需至少启动过一次客户端（`libraryfolders.vdf` 才会写全），Epic 需要 `%ProgramData%\Epic\UnrealEngineLauncher\LauncherInstalled.dat` 存在。
+
+**Q：扫描扫出来的是 Steam / WeGame 客户端本身，不是游戏？**
+早期版本会把整个 Steam 安装目录当游戏目录扫，这个问题在 1.4 已经修掉：现在会自动跳过平台客户端的安装目录，
+只认 `steamapps\common`、`Epic Games\<游戏名>`、`GOG Galaxy\Games` 这些真正的游戏落点；
+即使是真的游戏目录，也会再排除启动器、大厅客户端、运行库、反作弊、录制器等子目录。
+
+**Q：桌面上的 Steam 游戏快捷方式拖进去提示「无法识别」？**
+1.4 起支持 `.url` / `.lnk` 里的平台协议。`steam://rungameid/5194080`、`steam.exe -applaunch 5194080`、
+`com.epicgames.launcher://apps/...`、`galaxy2://runGame/...` 都会被识别成对应平台的游戏，
+游戏名和安装目录从本地清单里反查，显示的是商店里的正式名字。
 
 **Q：扫描扫不到我的游戏？**
 到 **⚙ 设置 → 扫描目录** 手动加上游戏所在根目录，并把「递归深度」调大（默认 4 层），「最小 exe 体积」调小。

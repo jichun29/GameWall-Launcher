@@ -88,24 +88,20 @@ public sealed class GameCardViewModel : ObservableObject
 
     private Brush? _placeholderBrush;
 
-    /// <summary>卡片封面：优先自定义封面 → exe 图标 → 空（由 PlaceholderBrush 兜底）。</summary>
-    public string PrimaryImage
-    {
-        get
-        {
-            if (!string.IsNullOrWhiteSpace(Entry.CoverPath) && File.Exists(Entry.CoverPath))
-            {
-                return Entry.CoverPath;
-            }
+    /// <summary>
+    /// 卡片封面图：只有用户自己指定的封面才满铺。
+    ///
+    /// 这里曾经把 exe 图标也塞进来满铺，结果是灾难——exe 里的图标大多是 32×32 的
+    /// 小图，拉伸到 208×208 就是一团黑影（A Pond Hunt Demo 的图标就是纯黑的）。
+    /// 现在图标改成「居中摆在渐变底上的徽标」，见 <see cref="ShowIcon"/>。
+    /// </summary>
+    public string PrimaryImage =>
+        !string.IsNullOrWhiteSpace(Entry.CoverPath) && File.Exists(Entry.CoverPath)
+            ? Entry.CoverPath
+            : string.Empty;
 
-            if (!string.IsNullOrWhiteSpace(Entry.IconPath) && File.Exists(Entry.IconPath))
-            {
-                return Entry.IconPath;
-            }
-
-            return string.Empty;
-        }
-    }
+    /// <summary>有用户指定的封面图。</summary>
+    public bool HasCover => !string.IsNullOrWhiteSpace(PrimaryImage);
 
     /// <summary>
     /// 没有封面也没有图标时铺在卡片底下的渐变。直接在内存里算，不落盘、不编码 PNG，
@@ -114,21 +110,22 @@ public sealed class GameCardViewModel : ObservableObject
     public Brush PlaceholderBrush =>
         _placeholderBrush ??= CoverFactory.CreatePlaceholderBrush(Entry.Name);
 
-    /// <summary>只有从 exe 取到的小图标时才把它当「徽标」叠在封面上。</summary>
-    public bool HasIconBadge =>
-        string.IsNullOrWhiteSpace(Entry.CoverPath) == false
-        && !string.IsNullOrWhiteSpace(Entry.IconPath)
-        && File.Exists(Entry.IconPath);
-
+    /// <summary>exe 图标文件路径（没有则为空）。</summary>
     public string IconImage =>
         !string.IsNullOrWhiteSpace(Entry.IconPath) && File.Exists(Entry.IconPath)
             ? Entry.IconPath
             : string.Empty;
 
-    /// <summary>是否只在用占位图（既没有自定义封面也没有 exe 图标）。</summary>
-    public bool UsesPlaceholder =>
-        (string.IsNullOrWhiteSpace(Entry.CoverPath) || !File.Exists(Entry.CoverPath))
-        && (string.IsNullOrWhiteSpace(Entry.IconPath) || !File.Exists(Entry.IconPath));
+    /// <summary>
+    /// 卡片上要不要把 exe 图标当「徽标」画出来。
+    ///
+    /// 规则：没有自定义封面、但有图标 → 铺渐变底 + 居中画图标。
+    /// 有自定义封面时不再叠图标，避免盖住用户挑的图。
+    /// </summary>
+    public bool ShowIcon => !HasCover && !string.IsNullOrEmpty(IconImage);
+
+    /// <summary>既没有封面也没有图标，只能显示名字首字。</summary>
+    public bool UsesPlaceholder => !HasCover && string.IsNullOrEmpty(IconImage);
 
     public string InitialGlyph => string.IsNullOrWhiteSpace(Name) ? "?" : Name.Trim()[..1].ToUpperInvariant();
 
@@ -204,10 +201,11 @@ public sealed class GameCardViewModel : ObservableObject
     {
         var changed = false;
 
-        // 图标：只有指向 exe 的游戏才提取
+        // 图标：只要能定位到本地 exe 就提取。
+        // 平台游戏（Steam/Epic/GOG）虽然没有「必须双击的 exe」，
+        // 但从安装目录里找到的主程序图标比占位渐变好看得多。
         if (allowExtractIcon
             && (forceRefresh || string.IsNullOrWhiteSpace(Entry.IconPath) || !File.Exists(Entry.IconPath))
-            && Entry.LaunchKind == LaunchKind.Executable
             && !string.IsNullOrWhiteSpace(Entry.ExecutablePath)
             && File.Exists(Entry.ExecutablePath))
         {
@@ -226,6 +224,19 @@ public sealed class GameCardViewModel : ObservableObject
             changed = true;
         }
 
+        // Steam 游戏还没封面时，去本地 appcache 里找官方竖版封面。
+        // 跟提取图标一样属于「重 IO」，所以和图标放在同一个 allowExtractIcon 开关后面，
+        // 首屏构造卡片时不会碰它，等后台预热再补。
+        if (allowExtractIcon && string.IsNullOrWhiteSpace(Entry.CoverPath) && Entry.LaunchKind == LaunchKind.Steam)
+        {
+            var cover = CoverArtService.TryFetchSteamCover(Entry.LaunchUri, Entry.Id);
+            if (!string.IsNullOrWhiteSpace(cover))
+            {
+                Entry.CoverPath = cover!;
+                changed = true;
+            }
+        }
+
         return changed;
     }
 
@@ -241,9 +252,10 @@ public sealed class GameCardViewModel : ObservableObject
         OnPropertyChanged(nameof(Source));
         OnPropertyChanged(nameof(IsMissing));
         OnPropertyChanged(nameof(PrimaryImage));
+        OnPropertyChanged(nameof(HasCover));
         OnPropertyChanged(nameof(PlaceholderBrush));
-        OnPropertyChanged(nameof(HasIconBadge));
         OnPropertyChanged(nameof(IconImage));
+        OnPropertyChanged(nameof(ShowIcon));
         OnPropertyChanged(nameof(UsesPlaceholder));
         OnPropertyChanged(nameof(InitialGlyph));
         OnPropertyChanged(nameof(Subtitle));

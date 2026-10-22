@@ -86,8 +86,22 @@ public sealed class GameEntry
     public string Source { get; set; } = "手动添加";
 
     /// <summary>文件是否仍然存在（运行时计算，不参与序列化）</summary>
+    /// <remarks>
+    /// 平台游戏（Steam/Epic/GOG）不能只看 exe：
+    ///  - 能找到安装目录里的主程序 → 按文件是否还在判断（卸载后卡片会显示「缺失」）
+    ///  - 找不到（比如只导入不下载）→ 认为存在，交给平台自己报错
+    /// </remarks>
     [JsonIgnore]
-    public bool Exists =>
-        LaunchKind != LaunchKind.Executable
-        || (!string.IsNullOrWhiteSpace(ExecutablePath) && System.IO.File.Exists(ExecutablePath));
+    public bool Exists
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(ExecutablePath))
+            {
+                return System.IO.File.Exists(ExecutablePath);
+            }
+
+            return LaunchKind != LaunchKind.Executable;
+        }
+    }
 }
