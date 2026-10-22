@@ -6,6 +6,15 @@
 
 纯本地工具，不联网、不上传任何数据，所有配置都存在 `%AppData%\GameWall\` 下。
 
+[![Release](https://img.shields.io/github/v/release/jichun29/GameWall-Launcher?label=release&color=3DDBFF)](https://github.com/jichun29/GameWall-Launcher/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/jichun29/GameWall-Launcher/total?label=downloads&color=3DDBFF)](https://github.com/jichun29/GameWall-Launcher/releases)
+[![Stars](https://img.shields.io/github/stars/jichun29/GameWall-Launcher?label=stars&color=FFB64D)](https://github.com/jichun29/GameWall-Launcher/stargazers)
+[![License](https://img.shields.io/github/license/jichun29/GameWall-Launcher?label=license&color=3DE8A0)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-3DDBFF)
+![.NET](https://img.shields.io/badge/.NET-8.0-FFB64D)
+
+**单文件绿色版** · 下下来双击就能用 · 不用装运行时 · 不用装游戏平台 · 不用联网
+
 ![卡片式视图](docs/screenshots/dark-card.png)
 
 ---
@@ -117,25 +126,41 @@
 
 ## 界面预览
 
-### 深色（默认，卡片式）
+> 下面这套图都是程序真实渲染的结果（`RenderTargetBitmap` 直接抓窗口视觉树，不是拼的示意图）。
 
-![卡片式](docs/screenshots/dark-card.png)
+### 卡片式视图（默认）
 
-### 浅色
+深色：
+
+![深色卡片式](docs/screenshots/dark-card.png)
+
+浅色：
 
 ![浅色卡片式](docs/screenshots/light-card.png)
 
-### 列表式
+### 列表式视图
 
 ![列表式](docs/screenshots/dark-list.png)
 
-### 设置面板（含「跟随系统」主题、更新源）
+### 设置面板
 
-![设置](docs/screenshots/dark-dialog-settings.png)
+深色：
+
+![设置·深色](docs/screenshots/dark-dialog-settings.png)
+
+浅色（含「跟随系统」主题、强调色「跟随主题」、更新源选择）：
+
+![设置·浅色](docs/screenshots/light-dialog-settings.png)
 
 ### 整理桌面
 
-![整理桌面](docs/screenshots/dark-dialog-tidy.png)
+深色：
+
+![整理桌面·深色](docs/screenshots/dark-dialog-tidy.png)
+
+浅色：
+
+![整理桌面·浅色](docs/screenshots/light-dialog-tidy.png)
 
 ### 游戏工具箱（左栏分类，右侧整块内容）
 
@@ -143,16 +168,20 @@
 
 ![游戏工具箱·硬件](docs/screenshots/dark-dialog-toolbox.png)
 
-优化方案页（切到「游戏性能」分类）：
+优化方案页（左栏切到「游戏性能」）：
 
 ![游戏工具箱·优化](docs/screenshots/dark-dialog-toolbox-opt.png)
+
+电源方案页：
+
+![游戏工具箱·电源](docs/screenshots/dark-dialog-toolbox-power.png)
 
 ### 首次运行引导
 
 ![首次运行](docs/screenshots/dark-firstrun.png)
 
-> 截图由 `tools/shoot-theme.ps1` / `tools/make-screenshots.ps1` 在程序运行时自动抓取
-> （`PrintWindow` + `PW_RENDERFULLCONTENT`，对 WPF 无边框窗口也能拿到真实渲染内容）。
+> 截图由 `tools/make-screenshots.ps1` / `tools/shoot-theme.ps1` 在线抓取，
+> 也可用离线宿主 `snap-host` 直接 `RenderTargetBitmap` 渲染（远程桌面 / 无桌面合成环境下更可靠）。
 
 ---
 
@@ -518,6 +547,8 @@ GameWall/
 │  ├─ capture.ps1             # 抓单个窗口截图的小工具
 │  ├─ make-screenshots.ps1    # 自动切换视图并批量截图
 │  ├─ shoot-theme.ps1         # 切换主题后重新出图（深/浅两套）
+│  ├─ shoot-offline.ps1       # 离线重拍全部界面图（走 snap-host，不依赖桌面合成）
+│  ├─ snap-host/              # 截图宿主：直接 new 窗口 + RenderTargetBitmap 渲染成 PNG
 │  ├─ shot-dialogs.ps1        # 抓设置对话框
 │  ├─ audit-layout.ps1        # UIA 排版审计（单窗口越界 / 重叠检测）
 │  ├─ audit-all.ps1           # 一次性审计全部窗口，结果图存 docs/audit/

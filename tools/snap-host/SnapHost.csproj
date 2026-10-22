@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    截图宿主（只用于生成 README 里的界面图，不参与产品发布）。
+
+    为什么需要它：在远程桌面 / 没有桌面合成的会话里，
+    PrintWindow 和 CopyFromScreen 都拿不到 WPF 窗口的真实像素
+    （前者全黑，后者只能拿到壁纸）。这个宿主直接 new 出 GameWall 的窗口，
+    用 RenderTargetBitmap 渲染视觉树再存成 PNG，得到的就是程序真实渲染的内容。
+
+    它引用的是已经编译好的 GameWall.dll：
+    不能改成 ProjectReference —— GameWall 是自包含可执行文件，
+    MSBuild 会报 NETSDK1151「自包含可执行文件不能由非自包含可执行文件引用」。
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- GameWall 为了系统托盘用了 WinForms，这里跟着打开，否则引用它的类型会缺程序集 -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>SnapHost</AssemblyName>
+    <RootNamespace>SnapHost</RootNamespace>
+    <StartupObject>SnapHost.Program</StartupObject>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <!-- 用 WPF 的 WinExe 会弹控制台窗口，这里显式要控制台输出 -->
+    <DisableWinExeOutputInference>true</DisableWinExeOutputInference>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 相对本工程向上两级 = 仓库根，再进 src/GameWall 的 Release 输出目录 -->
+    <Reference Include="GameWall">
+      <HintPath>..\..\src\GameWall\bin\Release\net8.0-windows\win-x64\GameWall.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+</Project>
