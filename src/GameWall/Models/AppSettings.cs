@@ -174,6 +174,18 @@ public sealed class AppSettings
     /// <summary>上次整理桌面后是否还提示（用户点过「以后别问了」就关掉）</summary>
     public bool ShowTidyHint { get; set; } = true;
 
+    // ── 游戏工具箱 ──────────────────────────────────────────
+    /// <summary>
+    /// 用户点过「以后别提示了」就置 true，工具箱相关的一次性引导不再弹。
+    /// </summary>
+    public bool HardwareToolboxSnoozed { get; set; }
+
+    /// <summary>已应用的优化项 Id 列表，用于界面上打勾与批量还原</summary>
+    public List<string> AppliedTweaks { get; set; } = new();
+
+    /// <summary>硬件信息页上次停留的页签索引</summary>
+    public int ToolboxTabIndex { get; set; }
+
     // ── 更新 ────────────────────────────────────────────────
     /// <summary>启动时自动检查更新（每天最多真正请求一次 GitHub）</summary>
     public bool AutoCheckUpdate { get; set; } = true;

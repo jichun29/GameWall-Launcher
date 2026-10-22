@@ -63,6 +63,7 @@ public sealed class MainViewModel : ObservableObject
         RefreshMissingCommand = new RelayCommand(_ => RefreshAllVisuals());
         AboutCommand = new RelayCommand(_ => RequestAbout?.Invoke());
         TidyDesktopCommand = new RelayCommand(_ => RequestTidyDesktop?.Invoke(), _ => TotalCount > 0);
+        ToolboxCommand = new RelayCommand(_ => RequestToolbox?.Invoke());
         CheckUpdateCommand = new AsyncRelayCommand(() => CheckUpdateAsync(interactive: true), () => !IsCheckingUpdate);
         SetViewModeCommand = new RelayCommand(p =>
         {
@@ -91,6 +92,9 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>请求打开「整理桌面」窗口</summary>
     public event Action? RequestTidyDesktop;
+
+    /// <summary>请求打开「游戏工具箱」窗口</summary>
+    public event Action? RequestToolbox;
 
     // ── 数据 ────────────────────────────────────────────────
     public ObservableCollection<GameCardViewModel> Cards { get; }
@@ -130,6 +134,9 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>「整理桌面」：把已收录游戏的桌面快捷方式挪进备份目录</summary>
     public RelayCommand TidyDesktopCommand { get; }
+
+    /// <summary>「工具箱」：硬件信息 + 游戏优化 + 电源方案</summary>
+    public RelayCommand ToolboxCommand { get; }
 
     // ── 筛选状态 ────────────────────────────────────────────
     public string SearchText

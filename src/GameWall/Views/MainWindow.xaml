@@ -169,11 +169,14 @@
                                        Stretch="UniformToFill"
                                        RenderOptions.BitmapScalingMode="HighQuality"
                                        Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
+                                <!-- 徽标与首字要往上偏一点：名称和副标题压在封面底部，
+                                     正中间摆会和文字撞在一起（审计脚本会报 OVERLAP）。 -->
                                 <Border Width="64" Height="64" CornerRadius="16"
                                         Background="#26FFFFFF"
                                         BorderBrush="#33FFFFFF"
                                         BorderThickness="1"
                                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Margin="0,0,0,34"
                                         Visibility="{Binding ShowIcon, Converter={StaticResource BoolToVis}}">
                                     <Image Source="{Binding IconImage, Converter={StaticResource PathToImage}}"
                                            Width="46" Height="46"
@@ -187,6 +190,7 @@
                                            Opacity="0.72"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
+                                           Margin="0,0,0,34"
                                            Visibility="{Binding UsesPlaceholder, Converter={StaticResource BoolToVis}}" />
                             </Grid>
 
@@ -660,6 +664,9 @@
                         <Button Content="🧹 整理桌面" Style="{StaticResource Button.Tool}"
                                 Command="{Binding TidyDesktopCommand}"
                                 ToolTip="把已经收进游戏墙的游戏快捷方式从桌面挪走（可还原）" />
+                        <Button Content="🎛 工具箱" Style="{StaticResource Button.Tool}"
+                                Command="{Binding ToolboxCommand}"
+                                ToolTip="本机硬件一览、游戏优化方案、电源方案（全部可还原）" />
                     </WrapPanel>
 
                     <!-- 视图切换 + 设置：固定贴右。外框总高同样收在 38 -->

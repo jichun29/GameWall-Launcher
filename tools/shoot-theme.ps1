@@ -35,7 +35,7 @@ $outDir = Join-Path $repo 'docs\screenshots'
 if (-not $Prefix) { $Prefix = $Theme.ToLower() }
 & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'make-screenshots.ps1') -OutDir $outDir 2>&1 | Out-Null
 
-foreach ($n in @('card', 'list', 'dialog-about')) {
+foreach ($n in @('card', 'list', 'dialog-about', 'dialog-toolbox')) {
     $src = Join-Path $outDir "$n.png"
     if (Test-Path $src) {
         Move-Item -Force $src (Join-Path $outDir "$Prefix-$n.png")

@@ -1,9 +1,9 @@
 ﻿# GameWall 发版脚本
 #
 # 版本规则（由 tools/release-history.json 记录，必须提交进仓库）：
-#   * 同一天最多推一个「大版本」——大版本指第二段（minor）进位，如 1.5 → 1.6。
-#   * 同一天后续所有发版只递增第三段（patch），如 1.6 → 1.6.1 → 1.6.2。
-#   * 隔天第一次发版才允许再有新的大版本。
+#   * 版本号统一走 1.0.x：主版本 1、次版本 0 固定不变，每次发版只把第三段 +1。
+#     （1.0.4 → 1.0.5 → 1.0.6 …）这样永远不会出现 1.1 / 1.2 那种「一天跳好几个大版本」。
+#   * 想启用新的次版本，得手动改 -Minor 参数，默认不动。
 #
 # 用法：
 #   1) 只算下一个版本号，不改任何文件、不发布
@@ -14,12 +14,13 @@
 #      .\tools\release.ps1 -Build -Record
 #
 # 打了 tag、传了 release 之后记得再跑一次 -Record 把那一条写进历史，
-# 否则下次同一天还会算出同样的大版本号。
+# 否则下次还会算出同样的版本号。
 
 param(
     [switch]$Build,
     [switch]$Record,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [string]$Minor = "0"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,25 +55,18 @@ if ($entries.Count -gt 0) {
 }
 
 if ($last -eq $null) {
-    $next = '1.0.0'
+    $next = "1.$Minor.0"
+    $reason = "还没有发版记录，从 1.$Minor.0 起步"
 }
 else {
     $parts = ($last.version -split '\.')
     $major = [int]$parts[0]
-    $minor = [int]$parts[1]
     $patch = 0
     if ($parts.Count -ge 3) { $patch = [int]$parts[2] }
 
-    if ($last.date -eq $today) {
-        # 今天已经发过一个大版本，只能递增第三段
-        $next = "$major.$minor.$($patch + 1)"
-        $reason = "今天（$today）已发布 $($last.version)，同一天只递增第三段"
-    }
-    else {
-        # 换了一天，允许再推一个新的大版本（minor 进位）
-        $next = "$major.$($minor + 1).0"
-        $reason = "上次发布在 $($last.date)，新的一天允许新的大版本"
-    }
+    # 只递增第三段：主次两段固定 1.0，避免版本号跑得比功能还快
+    $next = "$major.$Minor.$($patch + 1)"
+    $reason = "上次发布 $($last.version)，1.0.x 规范下只递增第三段"
 }
 
 Write-Host ''

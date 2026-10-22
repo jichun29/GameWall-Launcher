@@ -54,6 +54,7 @@ public partial class MainWindow : Window
         _vm.RequestImport += () => ImportFromPlatforms();
         _vm.RequestAbout += () => ShowAbout();
         _vm.RequestTidyDesktop += () => ShowTidyDesktop();
+        _vm.RequestToolbox += () => ShowToolbox();
 
         // 检查更新的结果统一交给主窗口处理：用户主动点的要弹窗，
         // 后台自动检查的只有在真发现新版本时才弹（顶栏提示条另外由绑定驱动）
@@ -212,6 +213,20 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             Logger.Error("打开关于窗口失败", ex);
+        }
+    }
+
+    /// <summary>打开游戏工具箱（硬件信息 + 优化方案 + 电源方案）。</summary>
+    private void ShowToolbox()
+    {
+        try
+        {
+            var win = new GameToolboxWindow { Owner = this };
+            win.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("打开游戏工具箱失败", ex);
         }
     }
 

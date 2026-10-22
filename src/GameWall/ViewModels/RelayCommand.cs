@@ -29,6 +29,13 @@ public sealed class RelayCommand : ICommand
     public bool CanExecute(object? parameter) => _canExecute?.Invoke(parameter) ?? true;
 
     public void Execute(object? parameter) => _execute(parameter);
+
+    /// <summary>
+    /// 主动要求重新求值 CanExecute。
+    /// CommandManager.RequerySuggested 只在输入事件（鼠标、键盘、焦点）后自动触发，
+    /// 由后台任务改变的状态（例如「正在应用」结束）必须自己叫一次。
+    /// </summary>
+    public void NotifyCanExecuteChanged() => CommandManager.InvalidateRequerySuggested();
 }
 
 /// <summary>异步命令：执行期间自动禁用，避免重复点击。</summary>
@@ -76,4 +83,7 @@ public sealed class AsyncRelayCommand : ICommand
             CommandManager.InvalidateRequerySuggested();
         }
     }
+
+    /// <summary>见 <see cref="RelayCommand.NotifyCanExecuteChanged"/>。</summary>
+    public void NotifyCanExecuteChanged() => CommandManager.InvalidateRequerySuggested();
 }

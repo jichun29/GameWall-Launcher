@@ -19,6 +19,7 @@
 - [安装与运行](#安装与运行)
 - [使用说明](#使用说明)
 - [桌面整理](#桌面整理)
+- [游戏工具箱](#游戏工具箱)
 - [检查更新](#检查更新)
 - [数据存储](#数据存储)
 - [从源码编译](#从源码编译)
@@ -75,6 +76,14 @@
 - **只动已收录的**：没导入过的快捷方式和公共桌面（`C:\Users\Public\Desktop`）的项一律不碰
 - **扫描后询问**：扫描 / 平台导入 / 拖放新增之后会问一句「要现在把它们挪走吗？」，顶栏也会提示「桌面还能再干净一点」
 
+### 游戏工具箱
+
+- **本机硬件一览**：CPU（型号 / 核心线程 / 架构 / 基准频率）、主板与 BIOS、内存（容量 / 频率 / 占用）、显卡（型号 / 显存 / 驱动）、硬盘分区、显示器、网卡 —— 全部走 Win32 / 注册表读取，不装驱动、不联网
+- **游戏优化方案**：43 项 Windows 深度调整，分「游戏性能 / 图形与显示 / 输入延迟 / 网络 / 后台与系统 / 隐私与广告」六类，每项都标了风险等级和实际效果，另有「推荐 / 竞技（低延迟）/ 画质」三套一键预设
+- **改之前先记旧值**：每一项写注册表之前都会把原值存进 `%AppData%\GameWall\tweaks\applied.json`，还原时不存在的值直接删掉，不会糊一个 0 上去
+- **电源方案**：直接调 `powrprof.dll` 枚举 / 切换 / 复制电源方案，可一键切「高性能」「卓越性能」（没有就复制一份出来），不调 `powercfg.exe`
+- **硬件报告导出**：一键导出 TXT / JSON 到桌面
+
 ### 体验
 
 - **三种主题模式**：深色 / 浅色 / **跟随系统**（默认深色）。
@@ -115,6 +124,10 @@
 ### 整理桌面
 
 ![整理桌面](docs/screenshots/dark-dialog-tidy.png)
+
+### 游戏工具箱（硬件信息 + 优化方案）
+
+![游戏工具箱](docs/screenshots/dark-dialog-toolbox.png)
 
 ### 首次运行引导
 
@@ -265,16 +278,53 @@ python tools/make-logo.py
 
 ---
 
+## 游戏工具箱
+
+工具栏的「🎛 工具箱」是本机硬件体检 + Windows 游戏优化方案，参考了 [NexBox](https://github.com/MuLiuSaMa/NexBox) 的思路自己重写（NexBox 是 GPL-3.0，这里没有复制它的代码，只借鉴了「哪些项真的影响游戏」这份清单）。
+
+### 硬件一览
+
+左侧按处理器 / 内存 / 显卡 / 硬盘 / 显示器 / 主板与系统 / 网络分节，全部走 `Win32`（`GetSystemInfo`、`GlobalMemoryStatusEx`、`EnumDisplayDevices`、`WMI` 之外的轻量接口）与注册表读取，**不装驱动、不联外网**。点「重新检测」可以重扫，点「导出」可以存成 TXT / JSON 到桌面。
+
+底部还会给出几条针对性建议（比如「内存占用偏高，可以关掉常驻的后台程序」「系统盘剩余空间不足 10%」「检测到独显，但没有在系统里首选独显」），每条都直接带一个可以点的优化项。
+
+### 优化方案
+
+按六类分组，共 43 项，每项标了风险等级与实际效果：
+
+| 分类 | 例子 |
+| --- | --- |
+| 游戏性能 | 游戏模式、MMCSS 游戏任务优先级、SystemResponsiveness、Win32PrioritySeparation、电源节流 |
+| 图形与显示 | 硬件加速 GPU 计划（HAGS）、首选独显、Flip Model、Auto HDR、可变刷新率、着色器缓存 |
+| 输入延迟 | 鼠标加速、键盘重复延迟、菜单展开延迟、悬停延时 |
+| 网络 | 网络节流、CTCP 拥塞控制、TTL、ECN、TCP 已用端口、DNS 缓存、QoS 保留带宽 |
+| 后台与系统 | 游戏 DVR、Xbox 服务、SysMain、NTFS 上次访问时间、音频独占与空间音效 |
+| 隐私与广告 | 开始菜单推荐、活动历史、Copilot、Recall 快照、Click to Do |
+
+三套预设（推荐 / 竞技 / 画质）点一下就把对应项勾上。带 🔒 的项需要**以管理员身份运行**才能应用（程序会提示，不会静默失败）。
+
+> **每一项都先记旧值，随时能还原。** 原值存在 `%AppData%\GameWall\tweaks\applied.json`：值本来存在就写回去，本来不存在就删掉这个值（不会补一个 0）。「全部还原」一次撤回所有已应用的项。改动都要重启或重登才完全生效。
+
+### 电源方案
+
+直接调 `powrprof.dll`（`PowerEnumerate` / `PowerSetActiveScheme` / `PowerDuplicateScheme`），不依赖 `powercfg.exe`：
+
+- **高性能** —— 系统自带的方案，一键切换
+- **卓越性能** —— 系统里没有就复制一份出来（部分版本被微软隐藏了）
+- **还原默认** —— 切回「平衡」
+
+---
+
 ## 检查更新
 
 「关于 GameWall」窗口和设置面板里都能手动检查更新；开启「启动时自动检查」后，程序每天最多自动查一次（记在 `settings.json` 的 `LastCheckAt`）。
 
-- **版本比较**只认 GitHub Releases 上的 `tag_name`（形如 `v1.5.1`），比本地 `AssemblyInformationalVersion` 高才提示
+- **版本比较**只认 GitHub Releases 上的 `tag_name`（形如 `v1.0.5`），比本地 `AssemblyInformationalVersion` 高才提示
 - **下载**走同一套源列表，逐个试到成功为止；下完先校验字节数和 `sha256`（GitHub 会回 `digest`），一致才落地
 - **安装**：把新版下到临时目录 → 拷到程序同目录 → 生成一个等待旧进程退出的 `.cmd` → 覆盖并重启。只对**单文件版**生效（绿色版结构变了没法热替换，会提示你手动替换）
 - **加速源**：国内直连 `api.github.com` 有时会断，所以内置了 `ghfast.top`、`ghproxy.net`、`gh-proxy.com`、`github.moeyy.xyz`、`hub.gitmirror.com` 五个镜像，「自动」模式会从直连开始挨个试
 
-> 版本号规则由 `tools/release.ps1` 守着：**同一天最多出一个大版本**，当天之后的所有更新只递增第三位（1.5 → 1.5.1 → 1.5.2），第二天才会跳到 1.6。发版记录存在 `tools/release-history.json`。
+> 版本号规则由 `tools/release.ps1` 守着：**主版本 1、次版本 0 固定，每次发版只递增第三位**（1.0.4 → 1.0.5 → 1.0.6）。这样不会出现「一天跳好几个大版本」。发版记录存在 `tools/release-history.json`。
 
 ---
 
@@ -290,7 +340,8 @@ GameWall/
 ├─ covers/               # 自定义封面图副本 + 自动生成的占位封面
 ├─ icons/                # 从 exe 提取的图标缓存（256×256 PNG）
 ├─ backgrounds/          # 自定义背景图副本
-└─ desktop-backup/       # 「整理桌面」挪走的快捷方式（每批一个时间戳目录 + restore.json）
+├─ desktop-backup/       # 「整理桌面」挪走的快捷方式（每批一个时间戳目录 + restore.json）
+└─ tweaks/               # 「游戏工具箱」改过的注册表项的原始值（applied.json，用于还原）
 ```
 
 `library.json` 单条记录长这样：
@@ -379,7 +430,9 @@ GameWall/
 │  ├─ App.xaml / App.xaml.cs  # 启动、单实例锁、托盘图标、全局异常兜底
 │  ├─ Models/
 │  │  ├─ GameEntry.cs         # 一条游戏记录
-│  │  └─ AppSettings.cs       # 全部设置项 + 主题模式常量
+│  │  ├─ AppSettings.cs       # 全部设置项 + 主题模式常量
+│  │  ├─ HardwareSnapshot.cs  # 硬件快照（CPU/GPU/内存/硬盘/显示器/主板/网卡）
+│  │  └─ TweakDefinition.cs   # 一条优化项（注册表操作 + 风险等级）/ 电源方案
 │  ├─ Services/
 │  │  ├─ JsonStore.cs         # 路径解析 + 原子化 JSON 读写
 │  │  ├─ LibraryService.cs    # 游戏列表的增删改排序
@@ -397,17 +450,24 @@ GameWall/
 │  │  ├─ AppInfo.cs           # 作者 / 仓库地址 / 版本号等元信息
 │  │  ├─ UpdateService.cs     # 检查更新、多镜像下载、SHA256 校验、自替换重启
 │  │  ├─ DesktopShortcutService.cs  # 桌面快捷方式体检 / 收纳 / 还原
+│  │  ├─ HardwareService.cs   # 硬件信息采集（Win32 + 注册表，零第三方库）
+│  │  ├─ HardwareReportService.cs   # 硬件报告导出 TXT / JSON
+│  │  ├─ TweakCatalog.cs      # 43 项优化项的定义（六类分组）
+│  │  ├─ TweakService.cs      # 应用 / 还原优化项，改前先记旧值
+│  │  ├─ PowerPlanService.cs  # 电源方案枚举 / 切换 / 复制（powrprof 直调）
 │  │  └─ Logger.cs            # 简易滚动日志
 │  ├─ ViewModels/
 │  │  ├─ ObservableObject.cs  # INotifyPropertyChanged 基类
 │  │  ├─ RelayCommand.cs      # 同步 / 异步命令
 │  │  ├─ GameCardViewModel.cs # 单张卡片的展示状态
+│  │  ├─ GameToolboxViewModel.cs  # 工具箱：硬件分节 / 优化项筛选 / 预设 / 电源方案
 │  │  └─ MainViewModel.cs     # 主界面状态、筛选、命令
 │  ├─ Views/
 │  │  ├─ MainWindow.xaml(.cs)        # 主窗口：两种视图 + 拖拽 + 拖放/粘贴导入 + 更新/整理提示条
 │  │  ├─ FirstRunWindow.xaml(.cs)    # 首次运行引导
 │  │  └─ Dialogs/
 │  │     ├─ AboutWindow.xaml(.cs)    # 关于：作者信息 + 检查更新
+│  │     ├─ GameToolboxWindow.xaml(.cs) # 游戏工具箱：硬件一览 + 优化方案 + 电源方案
 │  │     ├─ TidyDesktopWindow.xaml(.cs) # 整理桌面：选择要挪走的快捷方式
 │  │     ├─ GameEditWindow.xaml(.cs) # 编辑游戏信息
 │  │     ├─ SearchAddWindow.xaml(.cs)# 搜索添加
@@ -441,7 +501,7 @@ GameWall/
 └─ docs/screenshots/          # README 用图
 ```
 
-**技术选型**：C# + WPF（.NET 8）。零第三方 NuGet 依赖——图标提取直接 P/Invoke `IShellItemImageFactory`，注册表读写走 `Microsoft.Win32`，占位封面由名字哈希算一个渐变画刷，系统主题监听走 `Microsoft.Win32.SystemEvents`。界面无外部 UI 框架开销，首屏启动约 1 秒。
+**技术选型**：C# + WPF（.NET 8）。零第三方 NuGet 依赖——图标提取直接 P/Invoke `IShellItemImageFactory`，注册表读写走 `Microsoft.Win32`，占位封面由名字哈希算一个渐变画刷，系统主题监听走 `Microsoft.Win32.SystemEvents`，硬件信息走 Win32（`GetSystemInfo` / `GlobalMemoryStatusEx` / `EnumDisplayDevices`）与注册表，电源方案直接调 `powrprof.dll`。界面无外部 UI 框架开销，首屏启动约 1 秒。
 
 **性能做法**：卡片列表用自写的 `VirtualizingWrapPanel`（实现 `IScrollInfo`），只给视口覆盖到的行生成容器；图片经 `ImageCache` 按 `DecodePixelWidth=320` 解码并冻结复用；没有封面的游戏不画位图，直接铺一个按名字哈希出来的 `LinearGradientBrush`。所以游戏库从 6 个长到 200 个，首屏耗时基本不变。
 
@@ -453,18 +513,20 @@ GameWall/
 - [x] **P1 重要**：实时搜索 + 标签分类筛选 + 封面自定义 + 拖拽排序 + 收藏
 - [x] **P2 增强**：自动扫描 + 平台导入（Steam/Epic/GOG）+ 启动统计 + 存档目录
 - [x] **P3 体验**：深/浅/跟随系统三态主题 + 强调色 + 背景图 + 全屏 + 置顶 + 开机自启 + 系统托盘
-- [x] **1.4**：扫描剔除平台本体 / 运行库 / 安装器，同一游戏只留主程序；平台快捷方式识别；
-      封面与图标分开处理；从 Steam 本地缓存取官方封面
-- [x] **1.5**：全新暗黑霓虹视觉（深空黑 + 电光青 + 外发光）、控件尺寸与留白统一、
+- [x] **1.0.0**：全新暗黑霓虹视觉（深空黑 + 电光青 + 外发光）、控件尺寸与留白统一、
       五个对话框重做、应用图标改为几何绘制的大写字母 G
-- [x] **1.5.1**：视图精简为卡片式 / 列表式两种（卡片带悬停放大与选中呼吸光效）、
+- [x] **1.0.1**：视图精简为卡片式 / 列表式两种（卡片带悬停放大与选中呼吸光效）、
       新增「关于 GameWall」窗口与作者信息、内置检查更新（GitHub 版本号 + 国内镜像加速 + SHA256 校验 + 自替换重启）
-- [x] **1.5.2**：桌面整理——把已经收进游戏墙的游戏快捷方式从桌面挪到备份目录（只挪不删、可一键还原），
+- [x] **1.0.2**：桌面整理——把已经收进游戏墙的游戏快捷方式从桌面挪到备份目录（只挪不删、可一键还原），
       扫描 / 导入 / 拖放之后主动询问，顶栏提示「桌面还能再干净一点」
-- [x] **1.5.3**：还原快捷方式后自动清理空备份批次，整理结果提示的路径修正
-- [x] **1.5.4**：卡片默认宽度从 208 收到 150（老配置自动迁移）、去掉青转紫的渐变改为青→琥珀、
+- [x] **1.0.3**：还原快捷方式后自动清理空备份批次，整理结果提示的路径修正
+- [x] **1.0.4**：卡片默认宽度从 208 收到 150（老配置自动迁移）、去掉青转紫的渐变改为青→琥珀、
       占位封面改用固定暗色板（不再随机取色相）、卡片动效开关真正生效、关闭「显示名称」时
       去掉多余的底部遮罩、删除游戏时一并清理图标缓存、设置里取消能撤回主题预览、托盘菜单补齐入口
+- [x] **1.0.5**：新增「游戏工具箱」——本机硬件一览（CPU / 内存 / 显卡 / 硬盘 / 显示器 / 主板 / 网卡）、
+      43 项 Windows 游戏优化方案（六类分组、三套预设、应用前先记旧值可随时还原）、
+      电源方案一键切换（powrprof 直调）、硬件报告导出 TXT / JSON；
+      版本号规范改为 `1.0.x`（主次固定，只递增第三位）
 - [ ] 后续可做：多语言、游戏时长统计（需要注入/进程监控）、手柄导航、
       云同步（用户自己的同步盘）、截图预览墙、按最近游玩自动排序
 
@@ -484,12 +546,12 @@ GameWall 读的是 `HKCU\...\Themes\Personalize\AppsUseLightTheme`（「应用�
 只读取本机已安装的列表。Steam 需至少启动过一次客户端（`libraryfolders.vdf` 才会写全），Epic 需要 `%ProgramData%\Epic\UnrealEngineLauncher\LauncherInstalled.dat` 存在。
 
 **Q：扫描扫出来的是 Steam / WeGame 客户端本身，不是游戏？**
-早期版本会把整个 Steam 安装目录当游戏目录扫，这个问题在 1.4 已经修掉：现在会自动跳过平台客户端的安装目录，
+早期版本会把整个 Steam 安装目录当游戏目录扫，这个问题已经修掉：现在会自动跳过平台客户端的安装目录，
 只认 `steamapps\common`、`Epic Games\<游戏名>`、`GOG Galaxy\Games` 这些真正的游戏落点；
 即使是真的游戏目录，也会再排除启动器、大厅客户端、运行库、反作弊、录制器等子目录。
 
 **Q：桌面上的 Steam 游戏快捷方式拖进去提示「无法识别」？**
-1.4 起支持 `.url` / `.lnk` 里的平台协议。`steam://rungameid/5194080`、`steam.exe -applaunch 5194080`、
+已支持 `.url` / `.lnk` 里的平台协议。`steam://rungameid/5194080`、`steam.exe -applaunch 5194080`、
 `com.epicgames.launcher://apps/...`、`galaxy2://runGame/...` 都会被识别成对应平台的游戏，
 游戏名和安装目录从本地清单里反查，显示的是商店里的正式名字。
 
@@ -513,6 +575,19 @@ GameWall 读的是 `HKCU\...\Themes\Personalize\AppsUseLightTheme`（「应用�
 **Q：整理桌面为什么有些快捷方式没被勾上？**
 只勾「已经在 GameWall 里」的那些。没导入过的游戏、软件快捷方式，以及公共桌面
 （`C:\Users\Public\Desktop`，所有用户共享）的项一律不动——勾选也不会被允许。
+
+**Q：游戏工具箱里的优化项安全吗？会不会改坏系统？**
+每一项写注册表之前都会把原值存进 `%AppData%\GameWall\tweaks\applied.json`，点「全部还原」能一条条撤回；
+原值本来不存在的会把该值删掉，而不是补一个 0。风险等级为「高」的项（比如直接改显卡驱动子键的几项）
+默认不勾，必须手动打开「包含高风险项」才会出现。仍然建议勾之前看一眼每项下面那行「效果」说明。
+
+**Q：优化项点了没反应？**
+带 🔒 的项要**以管理员身份运行**才能写 `HKLM`。窗口顶部会显示当前是不是管理员身份；
+不是的话关掉程序，右键 exe → 以管理员身份运行后再试。另外大部分项要重启或重新登录才完全生效。
+
+**Q：工具箱里的硬件信息和任务管理器对不上？**
+工具箱读的是 `Win32_Processor` 之外的轻量接口 + 注册表，频率显示的是**基准频率**（不是实时睿频），
+内存/显卡占用是采样的瞬时值；远程桌面会话下显卡型号可能显示成 `Microsoft Remote Display Adapter`，这是正常的。
 
 **Q：出问题了怎么排查？**
 看 `%AppData%\GameWall\gamewall.log`。没有日志的话，多半是 XAML 资源或启动期异常，用 `dotnet run` 跑调试版能看到堆栈。

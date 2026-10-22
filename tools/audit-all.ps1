@@ -347,6 +347,18 @@ if (Invoke-ByName "🧹 整理桌面") {
     Close-TopDialog $mainHwnd
 }
 
+# 游戏工具箱（硬件信息 + 优化方案 + 电源方案）
+if (Invoke-ByName "🎛 工具箱") {
+    foreach ($w in [GWAudit]::Windows($pid32)) {
+        if ($w -ne $mainHwnd) {
+            [GWAudit]::SetWindowPos($w, [IntPtr]::Zero, 40, 30, 0, 0, 0x0001) | Out-Null
+            Start-Sleep -Milliseconds 1200
+            Audit-Window $w "08-toolbox"
+        }
+    }
+    Close-TopDialog $mainHwnd
+}
+
 # 编辑游戏（右键第一张卡片 → 编辑）
 $card = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
     (New-Object System.Windows.Automation.PropertyCondition(

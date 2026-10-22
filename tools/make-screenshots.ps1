@@ -100,5 +100,14 @@ if ($aboutHwnd -ne [IntPtr]::Zero) {
     # 关闭：发 WM_CLOSE，避免依赖焦点
     [GameWallShooter]::PostMessage($aboutHwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
 }
+Start-Sleep -Milliseconds 600
+
+# 「游戏工具箱」也抓一张：硬件一览 + 优化方案 + 电源方案
+Click-Button "🎛 工具箱"
+Save-Window "dialog-toolbox.png" "游戏工具箱"
+$boxHwnd = [GameWallShooter]::Find([uint32]$proc.Id, "游戏工具箱")
+if ($boxHwnd -ne [IntPtr]::Zero) {
+    [GameWallShooter]::PostMessage($boxHwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+}
 
 Write-Host "done"
