@@ -446,9 +446,23 @@ public static class DesktopShortcutService
                 }
             }
 
-            // 一个文件都不剩了就把这批备份目录删掉，免得设置里列出一堆空批次
+            // 一个文件都不剩了就把这批备份目录删掉，免得设置里列出一堆空批次。
+            // 注意清单文件 restore.json 还在目录里，得先删掉它才谈得上删目录。
             if (restored > 0 && !Directory.EnumerateFiles(backupDir).Any(f => IsShortcut(f)))
             {
+                try
+                {
+                    var manifestFile = Path.Combine(backupDir, RestoreFileName);
+                    if (File.Exists(manifestFile))
+                    {
+                        File.Delete(manifestFile);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error("删除空批次清单失败", ex);
+                }
+
                 TryDeleteDirectory(backupDir);
             }
         }

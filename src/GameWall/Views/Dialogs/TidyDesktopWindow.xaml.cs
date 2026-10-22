@@ -180,7 +180,7 @@ public partial class TidyDesktopWindow : Window
         {
             lines.Add(string.Empty);
             lines.Add("备份在：" + result.BackupDirectory);
-            lines.Add("想找回的话，到「设置 → 数据与关于 → 还原桌面快捷方式」。");
+            lines.Add("想找回的话，到「设置 → 桌面整理 → 还原到桌面」。");
         }
 
         MessageBox.Show(string.Join(Environment.NewLine, lines), "整理桌面",
