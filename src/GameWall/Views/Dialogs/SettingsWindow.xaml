@@ -1,0 +1,225 @@
+<Window x:Class="GameWall.Views.Dialogs.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="设置"
+        Width="700" Height="740"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Brush.Window}"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        UseLayoutRounding="True">
+
+    <Border Style="{StaticResource Dialog.Card}" Margin="18">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="Transparent" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <Grid Margin="22,18,16,12">
+                    <TextBlock Text="设置" Style="{StaticResource Text.Title}" FontSize="17" />
+                    <Button Content="✕" Style="{StaticResource Button.Icon}" HorizontalAlignment="Right"
+                            Click="Cancel_Click" />
+                </Grid>
+            </Border>
+
+            <ScrollViewer Grid.Row="1" Style="{StaticResource ScrollViewer.Clean}" Padding="22,0,22,0">
+                <StackPanel>
+
+                    <!-- ══════ 外观 ══════ -->
+                    <TextBlock Text="外观" Style="{StaticResource Text.Title}" FontSize="15" Margin="0,0,0,10" />
+
+                    <TextBlock Text="主题" Style="{StaticResource Text.Subtitle}" Margin="0,0,0,7" />
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="DarkRadio" Content="深色" GroupName="Theme" Margin="0,0,18,0"
+                                     VerticalAlignment="Center" Checked="Theme_Checked" />
+                        <RadioButton x:Name="LightRadio" Content="浅色" GroupName="Theme" Margin="0,0,18,0"
+                                     VerticalAlignment="Center" Checked="Theme_Checked" />
+                        <RadioButton x:Name="SystemRadio" Content="跟随系统" GroupName="Theme"
+                                     VerticalAlignment="Center" Checked="Theme_Checked" />
+                    </StackPanel>
+                    <TextBlock x:Name="SystemThemeHint" Style="{StaticResource Text.Dim}" FontSize="12"
+                               Margin="0,7,0,0" TextWrapping="Wrap" />
+
+                    <TextBlock Text="强调色" Style="{StaticResource Text.Subtitle}" Margin="0,16,0,7" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="AccentSwatch" Content="" Width="46" Height="26" Padding="0"
+                                Click="PickAccent_Click" ToolTip="点击选择强调色" />
+                        <TextBlock x:Name="AccentText" Style="{StaticResource Text.Subtitle}"
+                                   VerticalAlignment="Center" Margin="10,0,0,0" />
+                        <Button Content="跟随主题" Margin="14,0,0,0" Click="ResetAccent_Click"
+                                ToolTip="恢复成当前主题自带的强调色" />
+                    </StackPanel>
+
+                    <TextBlock Text="卡片宽度" Style="{StaticResource Text.Subtitle}" Margin="0,16,0,7" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Slider x:Name="CardWidthSlider" Grid.Column="0" Minimum="140" Maximum="340"
+                                TickFrequency="8" IsSnapToTickEnabled="True"
+                                ValueChanged="CardWidth_Changed" VerticalAlignment="Center" />
+                        <TextBlock x:Name="CardWidthText" Grid.Column="1" Style="{StaticResource Text.Subtitle}"
+                                   VerticalAlignment="Center" Margin="12,0,0,0" MinWidth="54" />
+                    </Grid>
+
+                    <CheckBox x:Name="ShowLabelsBox" Content="在卡片上显示游戏名称" Margin="0,16,0,0" />
+
+                    <TextBlock Text="背景" Style="{StaticResource Text.Subtitle}" Margin="0,18,0,7" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="BackgroundPathBox" Grid.Column="0" IsReadOnly="True" />
+                        <Button Grid.Column="1" Content="选择图片…" Margin="8,0,0,0" Click="PickBackground_Click" />
+                        <Button Grid.Column="2" Content="清除" Margin="8,0,0,0" Click="ClearBackground_Click" />
+                    </Grid>
+
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="背景不透明度" Style="{StaticResource Text.Subtitle}"
+                                   VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <Slider x:Name="BgOpacitySlider" Grid.Column="1" Minimum="0" Maximum="1"
+                                TickFrequency="0.05" IsSnapToTickEnabled="True"
+                                ValueChanged="BgOpacity_Changed" VerticalAlignment="Center" />
+                        <TextBlock x:Name="BgOpacityText" Grid.Column="2" Style="{StaticResource Text.Subtitle}"
+                                   VerticalAlignment="Center" Margin="12,0,0,0" MinWidth="44" />
+                    </Grid>
+
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="背景色" Style="{StaticResource Text.Subtitle}"
+                                   VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <Button x:Name="BgColorSwatch" Grid.Column="1" Content="" Width="46" Height="26"
+                                Padding="0" Click="PickBackgroundColor_Click" ToolTip="点击选择背景色" />
+                        <TextBlock x:Name="BgColorText" Grid.Column="2" Style="{StaticResource Text.Subtitle}"
+                                   VerticalAlignment="Center" Margin="10,0,0,0" />
+                        <Button Grid.Column="3" Content="跟随主题" Margin="14,0,0,0"
+                                Click="ResetBackgroundColor_Click"
+                                ToolTip="让背景色跟着深浅色主题走" />
+                    </Grid>
+
+                    <Separator Margin="0,20" />
+
+                    <!-- ══════ 窗口与行为 ══════ -->
+                    <TextBlock Text="窗口与行为" Style="{StaticResource Text.Title}" FontSize="15" Margin="0,0,0,10" />
+
+                    <CheckBox x:Name="TopmostBox" Content="窗口置顶，不被其它窗口遮挡" Margin="0,6,0,0" />
+                    <CheckBox x:Name="FullscreenBox" Content="启动时全屏最大化" Margin="0,10,0,0" />
+                    <CheckBox x:Name="TrayBox" Content="关闭窗口时最小化到系统托盘（不退出）" Margin="0,10,0,0" />
+                    <CheckBox x:Name="AutoStartBox" Content="开机自动启动（启动后静默进托盘）" Margin="0,10,0,0" />
+                    <CheckBox x:Name="ConfirmRemoveBox" Content="移除游戏前弹出确认" Margin="0,10,0,0" />
+                    <CheckBox x:Name="MinimizeOnLaunchBox" Content="启动游戏后自动最小化 GameWall" Margin="0,10,0,0" />
+
+                    <Separator Margin="0,20" />
+
+                    <!-- ══════ 扫描 ══════ -->
+                    <TextBlock Text="扫描目录" Style="{StaticResource Text.Title}" FontSize="15" Margin="0,0,0,8" />
+                    <TextBlock Style="{StaticResource Text.Subtitle}" TextWrapping="Wrap" Margin="0,0,0,10"
+                               Text="「扫描」和「搜索添加」会遍历这些目录。目录越少扫得越快。" />
+
+                    <Border CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource Brush.Border}"
+                            Background="{DynamicResource Brush.Surface}" Height="150">
+                        <Grid>
+                            <ListBox x:Name="PathList" Background="Transparent" BorderThickness="0" Padding="4">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Padding" Value="10,6" />
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <Border x:Name="Bd" Background="Transparent" CornerRadius="6"
+                                                            Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter />
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="Bd" Property="Background"
+                                                                    Value="{DynamicResource Brush.CardHover}" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="Bd" Property="Background"
+                                                                    Value="{DynamicResource Brush.AccentSoft}" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <TextBlock x:Name="NoPathHint" Style="{StaticResource Text.Subtitle}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Text="还没有扫描目录，点右下角「添加目录」" />
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0" HorizontalAlignment="Right">
+                        <Button Content="添加目录…" Click="AddPath_Click" Margin="0,0,8,0" />
+                        <Button Content="移除选中" Click="RemovePath_Click" Margin="0,0,8,0" />
+                        <Button Content="恢复默认目录" Click="ResetPaths_Click" />
+                    </StackPanel>
+
+                    <Grid Margin="0,14,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="搜索深度" Style="{StaticResource Text.Subtitle}"
+                                   VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <Slider x:Name="DepthSlider" Grid.Column="1" Minimum="1" Maximum="8"
+                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                ValueChanged="Depth_Changed" VerticalAlignment="Center" />
+                        <TextBlock x:Name="DepthText" Grid.Column="2" Style="{StaticResource Text.Subtitle}"
+                                   VerticalAlignment="Center" Margin="12,0,0,0" MinWidth="54" />
+                    </Grid>
+
+                    <Separator Margin="0,20" />
+
+                    <!-- ══════ 数据 ══════ -->
+                    <TextBlock Text="数据与关于" Style="{StaticResource Text.Title}" FontSize="15" Margin="0,0,0,10" />
+                    <TextBlock x:Name="DataPathText" Style="{StaticResource Text.Subtitle}"
+                               TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="打开数据目录" Click="OpenDataDir_Click" Margin="0,0,8,0" />
+                        <Button Content="恢复默认设置" Click="ResetAll_Click" />
+                    </StackPanel>
+
+                    <TextBlock Style="{StaticResource Text.Subtitle}" TextWrapping="Wrap" Margin="0,16,0,0"
+                               Text="GameWall 是纯本地工具：所有数据都保存在上面的目录里，不会上传到任何服务器。" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <Border Grid.Row="2" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0"
+                    Padding="22,14">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="取消" Click="Cancel_Click" Margin="0,0,10,0" Padding="20,8" />
+                    <Button Content="保存" Style="{StaticResource Button.Accent}" Click="Save_Click" Padding="24,8" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

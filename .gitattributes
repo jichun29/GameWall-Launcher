@@ -1,0 +1,19 @@
+# 统一换行：仓库内一律 LF，检出时 Windows 用 CRLF
+* text=auto eol=crlf
+
+# 源码保持 LF，避免 Windows 上 diff 噪音
+*.cs    text eol=lf
+*.xaml  text eol=lf
+*.csproj text eol=lf
+*.sln   text eol=crlf
+*.md    text eol=lf
+*.json  text eol=lf
+*.ps1   text eol=lf
+*.manifest text eol=lf
+
+# 二进制
+*.png   binary
+*.ico   binary
+*.jpg   binary
+*.exe   binary
+*.dll   binary

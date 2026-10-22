@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- 系统托盘 NotifyIcon 需要 WinForms 支持（仅用 NotifyIcon，界面全部是 WPF） -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GameWall</RootNamespace>
+    <AssemblyName>GameWall</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- 应用图标（窗口标题栏 / 任务栏 / exe 文件图标都用它） -->
+    <ApplicationIcon>Assets\GameWall.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <AssemblyTitle>GameWall</AssemblyTitle>
+    <Product>GameWall</Product>
+    <Description>A lightweight Windows game launcher with visual wall-style game management</Description>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <!--
+      单文件发布参数（dotnet publish 时生效）。
+      SelfContained=true 表示把 .NET 运行时一起打进去，用户机器不需要预装 .NET，双击即用。
+      代价是体积会到 60MB 左右；想换成依赖框架的小体积版本，把它改成 false 即可
+      （届时目标机需要安装 .NET 8 Desktop Runtime）。
+    -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+    <!--
+      WFAC010：UseWindowsForms 会建议把高 DPI 配置从 app.manifest 挪到 ApplicationHighDpiMode 属性。
+      但本项目界面是 WPF，PerMonitorV2 必须由清单声明才生效，因此保留清单并静音该警告。
+    -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      图标既作为 exe 文件图标（ApplicationIcon），也作为 WPF 资源打包，
+      这样托盘图标可以直接从 pack:// 资源里取多尺寸版本，不依赖 exe 路径。
+    -->
+    <Resource Include="Assets\GameWall.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      UseWindowsForms 会自动注入 global using System.Windows.Forms / System.Drawing，
+      这会让 Color、Brush、Point、MouseEventArgs、DragEventArgs 与 WPF 的同名类型冲突。
+      这里把它们移除，代码里需要 WinForms 的地方一律写全限定名（如 System.Windows.Forms.NotifyIcon）。
+    -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+</Project>

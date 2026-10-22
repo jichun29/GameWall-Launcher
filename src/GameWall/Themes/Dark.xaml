@@ -1,0 +1,66 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!--
+        深色主题（默认）。
+        所有键名与 Light.xaml 完全一致，ThemeManager 只负责整体替换字典。
+        控件通过 DynamicResource 引用，所以切换主题立即生效。
+    -->
+
+    <!-- 窗口 / 大面积底 -->
+    <SolidColorBrush x:Key="Brush.Window" Color="#0E1116" />
+    <SolidColorBrush x:Key="Brush.WindowBackdrop" Color="#0E1116" />
+
+    <!-- 面板 -->
+    <SolidColorBrush x:Key="Brush.Surface" Color="#14181F" />
+    <SolidColorBrush x:Key="Brush.SurfaceAlt" Color="#1B2028" />
+    <SolidColorBrush x:Key="Brush.Tooltip" Color="#1F242D" />
+
+    <!-- 卡片 -->
+    <SolidColorBrush x:Key="Brush.Card" Color="#181D25" />
+    <SolidColorBrush x:Key="Brush.CardHover" Color="#242B36" />
+    <LinearGradientBrush x:Key="Brush.CardOverlay" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#00000000" Offset="0" />
+        <GradientStop Color="#4D000000" Offset="0.45" />
+        <GradientStop Color="#D9000000" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- 边框 -->
+    <SolidColorBrush x:Key="Brush.Border" Color="#2A313D" />
+
+    <!-- 文字 -->
+    <SolidColorBrush x:Key="Brush.Text" Color="#EDF1F7" />
+    <SolidColorBrush x:Key="Brush.TextDim" Color="#9AA5B4" />
+    <SolidColorBrush x:Key="Brush.TextFaint" Color="#616C7A" />
+
+    <!-- 强调 -->
+    <SolidColorBrush x:Key="Brush.Accent" Color="#4F8CFF" />
+    <SolidColorBrush x:Key="Brush.AccentSoft" Color="#384F8CFF" />
+
+    <!-- 语义色 -->
+    <SolidColorBrush x:Key="Brush.Danger" Color="#FF6B6B" />
+    <SolidColorBrush x:Key="Brush.Success" Color="#4ADE80" />
+    <SolidColorBrush x:Key="Brush.Warning" Color="#FBBF24" />
+
+    <!--
+        覆盖层。空状态、忙碌遮罩这类「盖在内容上面的一整片半透明底」，
+        深浅色下必须换色，否则浅色主题会出现整片黑。
+    -->
+    <SolidColorBrush x:Key="Brush.Scrim" Color="#B30A0D11" />
+    <SolidColorBrush x:Key="Brush.ScrimStrong" Color="#CC0A0D11" />
+
+    <!-- 封面上的文字遮罩：封面本身是深色调，深浅主题都用深色，保证文字清晰 -->
+    <SolidColorBrush x:Key="Brush.CoverScrim" Color="#59000000" />
+
+    <!-- 卡片阴影颜色（浅色主题下要淡一些，否则像脏印子） -->
+    <Color x:Key="Color.Shadow">#FF000000</Color>
+    <sys:Double x:Key="Double.ShadowOpacity">0.32</sys:Double>
+
+    <!-- 首次运行引导的顶部头图渐变 -->
+    <Color x:Key="Color.HeroStart">#22304F</Color>
+    <Color x:Key="Color.HeroEnd">#0E1116</Color>
+    <SolidColorBrush x:Key="Brush.HeroText" Color="#EDF1F7" />
+    <SolidColorBrush x:Key="Brush.HeroTextDim" Color="#9AA5B4" />
+
+</ResourceDictionary>
