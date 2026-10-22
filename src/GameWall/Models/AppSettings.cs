@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace GameWall.Models;
@@ -73,7 +73,7 @@ public sealed class AppSettings
     public string BackgroundImagePath { get; set; } = string.Empty;
 
     /// <summary>
-    /// 背景纯色（HEX，如 #101318）。留空 = 跟随主题默认底色，
+    /// 背景纯色（HEX，如 #07080C）。留空 = 跟随主题默认底色，
     /// 这样切到浅色模式时背景会一起变亮，不会出现「浅色界面 + 深色底」的割裂感。
     /// </summary>
     public string BackgroundColor { get; set; } = string.Empty;
@@ -82,7 +82,7 @@ public sealed class AppSettings
     public double BackgroundImageOpacity { get; set; } = 0.35;
 
     /// <summary>
-    /// 强调色（HEX）。留空 = 跟随主题默认强调色（深色 #4F8CFF / 浅色 #2563EB）。
+    /// 强调色（HEX）。留空 = 跟随主题默认强调色（深色 #3DDBFF / 浅色 #1668E3）。
     /// </summary>
     public string AccentColor { get; set; } = string.Empty;
 

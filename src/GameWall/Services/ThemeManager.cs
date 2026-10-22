@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Media;
 using GameWall.Models;
@@ -74,7 +74,7 @@ public static class ThemeManager
                 return;
             }
 
-            // 空值 = 用主题自带的强调色（深色 #4F8CFF，浅色 #2563EB）
+            // 空值 = 用主题自带的强调色（深色 #3DDBFF，浅色 #1668E3）
             if (string.IsNullOrWhiteSpace(accentHex))
             {
                 app.Resources.Remove("Brush.Accent");

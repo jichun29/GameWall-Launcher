@@ -1,180 +1,302 @@
-"""生成 GameWall 应用图标（logo-1024/256.png + 多尺寸 GameWall.ico）。
-
-设计：超椭圆底盘（蓝→靛渐变）+ 三张微旋转的封面卡 + 中央播放键。
-直接运行 `python tools/make-logo.py`，产物写入 src/GameWall/Assets/。
-依赖 Pillow：pip install pillow
+# -*- coding: utf-8 -*-
 """
-import math, struct, os
-from io import BytesIO
+生成 GameWall 的品牌图标。
+
+设计思路
+--------
+主题是「游戏墙」，所以图标要一眼看出是「游戏 + 合集」：
+
+* 底盘：超椭圆（squircle）暗色板，深空蓝向近黑渐变，左上带一点冷光。
+  游戏启动器基本都不走纯白底，深底盘在任务栏、开始菜单里辨识度最高。
+* 描边：一圈青→蓝→紫的霓虹渐变细边，这是整套 UI 强调色的来源。
+* 主体：大写的 **G**（Game 的首字母）。用几何方式现画而不是排字体，
+  这样每一档尺寸的笔画粗细都能单独控制，16px 也不会糊成一团。
+  字母本身是白到浅青的竖向渐变，右上方留一个 45° 斜切缺口，
+  比规整的圆环更有「硬核」「机甲」的味道。
+
+产物（写进 src/GameWall/Assets/）：
+    GameWall.ico     多尺寸图标，exe 图标 + 托盘图标共用
+    logo-256.png     界面顶栏品牌标识
+    logo-1024.png    宣传 / 商店页面用的大图
+
+用法：python tools/make-logo.py
+"""
+
+import math
+import os
+
 from PIL import Image, ImageDraw, ImageFilter
 
-S = 1024                 # 绘制用超采样尺寸
-U = S / 256.0            # 以 256 为设计栅格
+S = 1024                      # 超采样尺寸，最后缩到各档
+U = S / 256.0                 # 256 的设计栅格里 1 个单位 = 多少像素
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                   'src', 'GameWall', 'Assets')
+                   "src", "GameWall", "Assets")
 
-# ── 配色：从品牌强调色 #4F8CFF 出发，向靛蓝收敛，避免发紫发粉 ──
-C_TOP = (0x5C, 0x8C, 0xFF)
-C_BOT = (0x6A, 0x52, 0xE8)
-C_PLAY_A = (0x40, 0x74, 0xFF)
-C_PLAY_B = (0x66, 0x46, 0xE0)
+# ── 配色 ─────────────────────────────────────────────────────────────
+C_PLATE_TOP = (0x1B, 0x22, 0x33)     # 底盘上沿
+C_PLATE_BOT = (0x08, 0x0A, 0x10)     # 底盘下沿
+C_RIM_A = (0x22, 0xD3, 0xEE)         # 霓虹描边：青
+C_RIM_B = (0x4F, 0x8C, 0xFF)         # 霓虹描边：蓝
+C_RIM_C = (0x8B, 0x5C, 0xF6)         # 霓虹描边：紫
+C_GLYPH_TOP = (0xFF, 0xFF, 0xFF)     # 字母上沿
+C_GLYPH_BOT = (0xB6, 0xE8, 0xFF)     # 字母下沿
 
 
-def squircle(size, n=4.6, inset=0.02):
-    w = size
+def squircle(size, n=4.6, inset=0.0):
+    """超椭圆遮罩。n 越大越接近方形，4.6 的观感接近现代 App 图标。"""
+    mask = Image.new("L", (size, size), 0)
+    d = ImageDraw.Draw(mask)
     pad = size * inset
-    img = Image.new("L", (w, w), 0)
-    px = img.load()
-    cx = cy = w / 2.0
-    r = (w - 2 * pad) / 2.0
-    for y in range(w):
-        dy = abs((y + 0.5 - cy) / r)
-        dyn = dy ** n
-        for x in range(w):
-            dx = abs((x + 0.5 - cx) / r)
-            if dx ** n + dyn <= 1.0:
-                px[x, y] = 255
-    return img
+    half = (size - 2 * pad) / 2.0
+    c = size / 2.0
+    steps = 720
+    pts = []
+    for i in range(steps):
+        t = 2 * math.pi * i / steps
+        ct, st = math.cos(t), math.sin(t)
+        x = c + half * math.copysign(abs(ct) ** (2.0 / n), ct)
+        y = c + half * math.copysign(abs(st) ** (2.0 / n), st)
+        pts.append((x, y))
+    d.polygon(pts, fill=255)
+    return mask
 
 
-def linear(size, c1, c2, angle=122):
-    img = Image.new("RGB", (size, size))
+def vertical(size, top, bottom):
+    """竖向线性渐变。"""
+    img = Image.new("RGB", (1, size))
     px = img.load()
-    a = math.radians(angle)
-    dx, dy = math.cos(a), math.sin(a)
-    proj = [x * dx + y * dy for x in (0, size) for y in (0, size)]
-    lo, hi = min(proj), max(proj)
-    span = (hi - lo) or 1
     for y in range(size):
-        row = y * dy
-        for x in range(size):
-            t = (x * dx + row - lo) / span
-            t = 0.0 if t < 0 else (1.0 if t > 1 else t)
-            px[x, y] = (round(c1[0] + (c2[0] - c1[0]) * t),
-                        round(c1[1] + (c2[1] - c1[1]) * t),
-                        round(c1[2] + (c2[2] - c1[2]) * t))
-    return img
+        k = y / max(1, size - 1)
+        px[0, y] = (round(top[0] + (bottom[0] - top[0]) * k),
+                    round(top[1] + (bottom[1] - top[1]) * k),
+                    round(top[2] + (bottom[2] - top[2]) * k))
+    return img.resize((size, size), Image.NEAREST)
 
 
-def glow(size, center, radius, color, alpha_max=96):
+def tri_gradient(size, stops):
+    """横向多段渐变，stops 是 [(位置0~1, 颜色), ...]。"""
+    img = Image.new("RGB", (size, 1))
+    px = img.load()
+    for x in range(size):
+        k = x / max(1, size - 1)
+        for i in range(len(stops) - 1):
+            p0, c0 = stops[i]
+            p1, c1 = stops[i + 1]
+            if p0 <= k <= p1:
+                f = 0.0 if p1 == p0 else (k - p0) / (p1 - p0)
+                px[x, 0] = (round(c0[0] + (c1[0] - c0[0]) * f),
+                            round(c0[1] + (c1[1] - c0[1]) * f),
+                            round(c0[2] + (c1[2] - c0[2]) * f))
+                break
+    return img.resize((size, size), Image.NEAREST)
+
+
+def radial(size, center, radius, color, alpha_max):
+    """柔光：中心 alpha_max，到 radius 处衰减到 0。"""
     img = Image.new("L", (size, size), 0)
-    px = img.load()
-    cx, cy = center
-    inv = 1.0 / radius
-    for y in range(size):
-        dy = (y - cy) * inv
-        for x in range(size):
-            d = math.hypot((x - cx) * inv, dy)
-            if d < 1.0:
-                px[x, y] = int(alpha_max * (1 - d) ** 2)
-    layer = Image.new("RGBA", (size, size), color + (0,))
-    layer.putalpha(img)
-    return layer
+    d = ImageDraw.Draw(img)
+    cx, cy = center[0] * size, center[1] * size
+    r = radius * size
+    steps = 40
+    for i in range(steps, 0, -1):
+        k = i / steps
+        a = int(alpha_max * (1 - k) ** 2)
+        rr = r * k
+        d.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=a)
+    tint = Image.new("RGB", (size, size), color)
+    return tint, img
 
 
-def plate():
-    base = linear(S, C_TOP, C_BOT).convert("RGBA")
-    base.alpha_composite(glow(S, (0.32 * S, 0.14 * S), 0.68 * S, (255, 255, 255)))
-    base.putalpha(squircle(S))
-    # 内高光边：让图标在深色背景上也能看轮廓
-    edge = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    ImageDraw.Draw(edge).rounded_rectangle(
-        (3 * U, 3 * U, 253 * U, 253 * U), radius=58 * U,
-        outline=(255, 255, 255, 46), width=int(2.2 * U))
-    em = squircle(S)
-    edge.putalpha(Image.composite(edge.getchannel("A"), Image.new("L", (S, S), 0), em))
-    base.alpha_composite(edge)
-    return base
+def glyph_mask(size, thick=0.196, gap=44):
+    """
+    画出大写 G 的遮罩。
 
+    thick: 笔画厚度（相对边长）
+    gap  : 右侧缺口的半角（度）
 
-def tilted(w, h, rot, alpha, cx, cy, radius=15):
-    layer = Image.new("RGBA", (int(w * U) + 12, int(h * U) + 12), (0, 0, 0, 0))
-    ImageDraw.Draw(layer).rounded_rectangle(
-        (6, 6, 6 + int(w * U) - 1, 6 + int(h * U) - 1), radius=radius * U,
-        fill=(255, 255, 255, alpha))
-    layer = layer.rotate(rot, resample=Image.BICUBIC, expand=True)
-    canvas = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    canvas.alpha_composite(layer, (int(cx * U - layer.width / 2),
-                                   int(cy * U - layer.height / 2)))
-    return canvas
+    构造顺序：外圆 → 挖内圆成环 → 挖掉右侧缺口 → 补上中间的横杠。
+    横杠左端做 45° 斜切，这是「G」区别于「O」的关键，也是整枚图标
+    最有硬朗感的地方。
+    """
+    m = Image.new("L", (size, size), 0)
+    d = ImageDraw.Draw(m)
 
+    cx = cy = size / 2.0
+    r_out = size * 0.352
+    r_in = r_out - size * thick
+    w = max(1, int(size * 0.004))
 
-def play_triangle(x0, y0, x1, y1, tip_x):
-    mask = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(mask).polygon(
-        [(x0 * U, y0 * U), (x0 * U, y1 * U), (tip_x * U, (y0 + y1) / 2 * U)], fill=255)
-    tri = linear(S, C_PLAY_A, C_PLAY_B, 28).convert("RGBA")
-    tri.putalpha(mask)
-    return tri
+    # 外圆减内圆 = 圆环。用 difference 得到干净的环。
+    ring = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(ring).ellipse([cx - r_out, cy - r_out, cx + r_out, cy + r_out], fill=255)
+    hole = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(hole).ellipse([cx - r_in, cy - r_in, cx + r_in, cy + r_in], fill=255)
+    ring = Image.composite(Image.new("L", (size, size), 0), ring, hole)
+
+    # 右侧缺口：从 -gap 到 +gap 度的扇形挖空
+    cut = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(cut).pieslice(
+        [cx - r_out - w, cy - r_out - w, cx + r_out + w, cy + r_out + w],
+        360 - gap, gap, fill=255)
+    ring = Image.composite(Image.new("L", (size, size), 0), ring, cut)
+
+    # 中间的横杠：右端顶到环的外沿，左端 45° 斜切收进环里
+    bar_th = r_in * 0.92
+    bar_top = cy - bar_th / 2.0
+    bar_bot = cy + bar_th / 2.0
+    bar_left = cx - r_in * 0.30
+    bar_right = cx + r_out
+    chamfer = bar_th * 0.55
+    bar = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(bar).polygon(
+        [(bar_left + chamfer, bar_top), (bar_right, bar_top),
+         (bar_right, bar_bot), (bar_left, bar_bot)],
+        fill=255)
+    ring = Image.composite(bar, ring, bar)
+
+    # 内圈再挖一次，保证横杠与环的接缝处不留额外厚度
+    m.paste(ring, (0, 0))
+    return m
 
 
 def render():
-    base = plate()
+    """256 设计栅格的完整版。"""
+    base = Image.new("RGBA", (S, S), (0, 0, 0, 0))
 
-    # 侧卡：先铺一层散投影
-    sh = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    ImageDraw.Draw(sh).rounded_rectangle(
-        (66 * U, 50 * U, 194 * U, 216 * U), radius=18 * U, fill=(0x14, 0x18, 0x42, 120))
-    base.alpha_composite(sh.filter(ImageFilter.GaussianBlur(13 * U)))
+    # ① 外发光：整枚图标外面套一层冷色光晕，深色任务栏上会「亮」起来
+    glow_mask = squircle(S, inset=0.055).filter(ImageFilter.GaussianBlur(S * 0.030))
+    tint, _ = radial(S, (0.5, 0.5), 0.62, (0x4F, 0x8C, 0xFF), 150)
+    base = Image.composite(tint.convert("RGBA"), base, glow_mask)
 
-    base.alpha_composite(tilted(74, 124, -23, 104, 90, 136))
-    base.alpha_composite(tilted(74, 124, 23, 104, 166, 136))
+    # ② 底盘
+    plate_mask = squircle(S, inset=0.055)
+    plate = vertical(S, C_PLATE_TOP, C_PLATE_BOT).convert("RGBA")
+    tint, a = radial(S, (0.28, 0.10), 0.70, (0x2C, 0x4A, 0x7A), 128)
+    plate = Image.composite(tint.convert("RGBA"), plate, a)
+    plate.putalpha(plate_mask)
+    base = Image.alpha_composite(base, plate)
 
-    # 主卡投影（贴合卡形，比整组投影更真实）
-    fs = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    ImageDraw.Draw(fs).rounded_rectangle(
-        (86 * U, 62 * U, 170 * U, 200 * U), radius=17 * U, fill=(0x10, 0x14, 0x3A, 150))
-    base.alpha_composite(fs.filter(ImageFilter.GaussianBlur(8 * U)))
+    # ③ 霓虹描边：把「圆角矩形轮廓」做成一张遮罩，再乘以三色渐变
+    outer = squircle(S, inset=0.055)
+    inner = squircle(S, inset=0.055 + 3.0 * U / S * 256 / 256 * 0.0094 + 0.0094)
+    rim_mask = Image.composite(Image.new("L", (S, S), 0), outer, inner)
+    rim_rgb = tri_gradient(S, [(0.0, C_RIM_A), (0.5, C_RIM_B), (1.0, C_RIM_C)])
+    rim = rim_rgb.convert("RGBA")
+    rim.putalpha(rim_mask.point(lambda v: int(v * 0.92)))
+    base = Image.alpha_composite(base, rim)
 
-    front = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    ImageDraw.Draw(front).rounded_rectangle(
-        (88 * U, 58 * U, 168 * U, 196 * U), radius=16 * U, fill=(255, 255, 255, 253))
-    base.alpha_composite(front)
+    # ④ 字母 G：先画一层淡淡的同色投影，让它从底盘上「浮」起来
+    gm = glyph_mask(S)
+    shadow = gm.filter(ImageFilter.GaussianBlur(S * 0.012))
+    sh = Image.new("RGBA", (S, S), (0x00, 0x1A, 0x33, 150))
+    sh.putalpha(shadow.point(lambda v: int(v * 0.55)))
+    base = Image.alpha_composite(base, sh)
 
-    base.alpha_composite(play_triangle(112, 106, 112, 150, 148))
+    glyph = vertical(S, C_GLYPH_TOP, C_GLYPH_BOT).convert("RGBA")
+    glyph.putalpha(gm)
+    base = Image.alpha_composite(base, glyph)
+
+    # ⑤ 字母上沿打一点高光，增加金属/玻璃质感
+    hl = gm.point(lambda v: v)
+    hl_box = hl.getbbox()
+    if hl_box:
+        band = Image.new("L", (S, S), 0)
+        ImageDraw.Draw(band).rectangle(
+            [hl_box[0], hl_box[1], hl_box[2], hl_box[1] + int((hl_box[3] - hl_box[1]) * 0.16)],
+            fill=70)
+        band = Image.composite(band, Image.new("L", (S, S), 0), hl)
+        base = Image.alpha_composite(base, Image.merge("RGBA", (
+            Image.new("L", (S, S), 255), Image.new("L", (S, S), 255),
+            Image.new("L", (S, S), 255), band.filter(ImageFilter.GaussianBlur(S * 0.006)))))
+
     return base
 
 
 def render_small():
-    """≤24px 简化版：单卡 + 更大的播放键，去掉侧卡与投影。"""
-    base = linear(S, C_TOP, C_BOT).convert("RGBA")
-    base.alpha_composite(glow(S, (0.32 * S, 0.14 * S), 0.68 * S, (255, 255, 255)))
-    base.putalpha(squircle(S))
-    front = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    ImageDraw.Draw(front).rounded_rectangle(
-        (50 * U, 44 * U, 206 * U, 212 * U), radius=28 * U, fill=(255, 255, 255, 253))
-    base.alpha_composite(front)
-    base.alpha_composite(play_triangle(92, 86, 92, 170, 170))
+    """
+    16~24px 的简化版。
+
+    这个尺寸下外发光、内高光、投影全都会糊成脏边，所以只留
+    底盘 + 描边 + 加粗的字母，笔画也比大图更粗一档。
+    """
+    base = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+
+    plate_mask = squircle(S, inset=0.030)
+    plate = vertical(S, C_PLATE_TOP, C_PLATE_BOT).convert("RGBA")
+    plate.putalpha(plate_mask)
+    base = Image.alpha_composite(base, plate)
+
+    outer = squircle(S, inset=0.030)
+    inner = squircle(S, inset=0.030 + 0.028)
+    rim_mask = Image.composite(Image.new("L", (S, S), 0), outer, inner)
+    rim_rgb = tri_gradient(S, [(0.0, C_RIM_A), (0.5, C_RIM_B), (1.0, C_RIM_C)])
+    rim = rim_rgb.convert("RGBA")
+    rim.putalpha(rim_mask)
+    base = Image.alpha_composite(base, rim)
+
+    gm = glyph_mask(S, thick=0.235, gap=40)
+    glyph = vertical(S, C_GLYPH_TOP, C_GLYPH_BOT).convert("RGBA")
+    glyph.putalpha(gm)
+    base = Image.alpha_composite(base, glyph)
     return base
 
 
-def make_ico(img, path, sizes=(16, 20, 24, 32, 40, 48, 64, 96, 128, 256)):
-    small = render_small()
+def make_ico(big, small, path, sizes=(16, 20, 24, 32, 40, 48, 64, 96, 128, 256)):
+    """手工拼 ICO：ICONDIR + ICONDIRENTRY×N + 每档 PNG 数据。"""
+    import io
+
     entries = []
     for s in sizes:
-        src = small if s <= 24 else img
-        px = src.resize((s, s), Image.LANCZOS)
-        bio = BytesIO()
-        px.save(bio, format="PNG", optimize=True)
-        entries.append((s, bio.getvalue()))
-    out = bytearray(struct.pack("<HHH", 0, 1, len(entries)))
-    offset = 6 + 16 * len(entries)
+        src = small if s <= 24 else big
+        # 缩之前先轻微锐化，避免小尺寸发虚
+        img = src.resize((s, s), Image.LANCZOS)
+        if s <= 48:
+            img = img.filter(ImageFilter.UnsharpMask(radius=0.6, percent=60, threshold=2))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        entries.append((s, buf.getvalue()))
+
+    count = len(entries)
+    header = bytearray()
+    header += (0).to_bytes(2, "little")      # reserved
+    header += (1).to_bytes(2, "little")      # type = icon
+    header += count.to_bytes(2, "little")
+
+    offset = 6 + 16 * count
+    dir_bytes = bytearray()
+    data_bytes = bytearray()
     for s, data in entries:
-        out += struct.pack("<BBBBHHII", 0 if s >= 256 else s, 0 if s >= 256 else s,
-                           0, 0, 1, 32, len(data), offset)
+        w = 0 if s >= 256 else s             # 256 在这一格里写 0
+        h = 0 if s >= 256 else s
+        dir_bytes += bytes([w, h, 0, 0])
+        dir_bytes += (1).to_bytes(2, "little")   # planes
+        dir_bytes += (32).to_bytes(2, "little")  # bpp
+        dir_bytes += len(data).to_bytes(4, "little")
+        dir_bytes += offset.to_bytes(4, "little")
+        data_bytes += data
         offset += len(data)
-    for _, data in entries:
-        out += data
-    open(path, "wb").write(out)
-    return len(out)
+
+    with open(path, "wb") as f:
+        f.write(bytes(header) + bytes(dir_bytes) + bytes(data_bytes))
+
+
+def main():
+    os.makedirs(OUT, exist_ok=True)
+    big = render()
+    small = render_small()
+
+    ico = os.path.join(OUT, "GameWall.ico")
+    make_ico(big, small, ico)
+
+    big.resize((256, 256), Image.LANCZOS).save(os.path.join(OUT, "logo-256.png"))
+    big.resize((1024, 1024), Image.LANCZOS).save(os.path.join(OUT, "logo-1024.png"))
+
+    print("已生成：")
+    for name in ("GameWall.ico", "logo-256.png", "logo-1024.png"):
+        p = os.path.join(OUT, name)
+        print("  %-16s %8d 字节" % (name, os.path.getsize(p)))
 
 
 if __name__ == "__main__":
-    os.makedirs(OUT, exist_ok=True)
-    img = render()
-    # 1024 / 256 两个 PNG 进仓库（界面里的品牌标识 & 高清母版）
-    img.resize((1024, 1024), Image.LANCZOS).save(os.path.join(OUT, "logo-1024.png"))
-    img.resize((256, 256), Image.LANCZOS).save(os.path.join(OUT, "logo-256.png"))
-    print("ico bytes =", make_ico(img, os.path.join(OUT, "GameWall.ico")))
-    print("written to", OUT)
+    main()

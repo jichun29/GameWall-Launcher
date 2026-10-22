@@ -3,64 +3,119 @@
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!--
-        深色主题（默认）。
-        所有键名与 Light.xaml 完全一致，ThemeManager 只负责整体替换字典。
-        控件通过 DynamicResource 引用，所以切换主题立即生效。
+        深色主题（默认）—— 游戏启动器风格。
+
+        配色思路：底色是带蓝调的近黑（不是纯黑，纯黑会让霓虹色显脏），
+        强调色用青 → 蓝 → 紫的斜向渐变，边框一律带一点点透明度，
+        这样叠在渐变底上时边缘不会出现生硬的实线。
+
+        所有键名与 Light.xaml 必须完全一致，ThemeManager 整体替换字典，
+        控件全部用 DynamicResource 引用，切主题立即生效。
     -->
 
-    <!-- 窗口 / 大面积底 -->
-    <SolidColorBrush x:Key="Brush.Window" Color="#0E1116" />
-    <SolidColorBrush x:Key="Brush.WindowBackdrop" Color="#0E1116" />
+    <!-- ═════════ 窗口 / 大面积底 ═════════ -->
 
-    <!-- 面板 -->
-    <SolidColorBrush x:Key="Brush.Surface" Color="#14181F" />
-    <SolidColorBrush x:Key="Brush.SurfaceAlt" Color="#1B2028" />
-    <SolidColorBrush x:Key="Brush.Tooltip" Color="#1F242D" />
+    <SolidColorBrush x:Key="Brush.Window" Color="#07080C" />
+    <SolidColorBrush x:Key="Brush.WindowBackdrop" Color="#07080C" />
 
-    <!-- 卡片 -->
-    <SolidColorBrush x:Key="Brush.Card" Color="#181D25" />
-    <SolidColorBrush x:Key="Brush.CardHover" Color="#242B36" />
-    <LinearGradientBrush x:Key="Brush.CardOverlay" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#00000000" Offset="0" />
-        <GradientStop Color="#4D000000" Offset="0.45" />
-        <GradientStop Color="#D9000000" Offset="1" />
+    <!-- 窗口背后的一层冷光：从右上角散开，让大块深色不至于死板 -->
+    <RadialGradientBrush x:Key="Brush.PageGlow" GradientOrigin="0.78,0.12"
+                         Center="0.78,0.12" RadiusX="0.95" RadiusY="0.95">
+        <GradientStop Color="#2E1B4A7A" Offset="0" />
+        <GradientStop Color="#12407BD0" Offset="0.42" />
+        <GradientStop Color="#00000000" Offset="1" />
+    </RadialGradientBrush>
+
+    <!-- ═════════ 面板 ═════════ -->
+
+    <SolidColorBrush x:Key="Brush.Surface" Color="#0C0F17" />
+    <SolidColorBrush x:Key="Brush.SurfaceAlt" Color="#151A26" />
+    <SolidColorBrush x:Key="Brush.Tooltip" Color="#161C2A" />
+    <SolidColorBrush x:Key="Brush.SurfaceHover" Color="#1E2536" />
+
+    <!-- 顶栏 / 状态栏用的竖向渐变，比纯色更有厚度 -->
+    <LinearGradientBrush x:Key="Brush.BarGradient" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#121724" Offset="0" />
+        <GradientStop Color="#0B0E16" Offset="1" />
     </LinearGradientBrush>
 
-    <!-- 边框 -->
-    <SolidColorBrush x:Key="Brush.Border" Color="#2A313D" />
+    <!-- ═════════ 卡片 ═════════ -->
 
-    <!-- 文字 -->
-    <SolidColorBrush x:Key="Brush.Text" Color="#EDF1F7" />
-    <SolidColorBrush x:Key="Brush.TextDim" Color="#9AA5B4" />
-    <SolidColorBrush x:Key="Brush.TextFaint" Color="#616C7A" />
+    <SolidColorBrush x:Key="Brush.Card" Color="#11151F" />
+    <SolidColorBrush x:Key="Brush.CardHover" Color="#1B2231" />
+    <LinearGradientBrush x:Key="Brush.CardOverlay" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#00000000" Offset="0" />
+        <GradientStop Color="#3D000000" Offset="0.40" />
+        <GradientStop Color="#E60A0C12" Offset="1" />
+    </LinearGradientBrush>
 
-    <!-- 强调 -->
-    <SolidColorBrush x:Key="Brush.Accent" Color="#4F8CFF" />
-    <SolidColorBrush x:Key="Brush.AccentSoft" Color="#384F8CFF" />
+    <!-- 卡片悬停时的描边：霓虹色，比 Accent 淡一档 -->
+    <SolidColorBrush x:Key="Brush.CardBorderHover" Color="#8C3DDBFF" />
 
-    <!-- 语义色 -->
-    <SolidColorBrush x:Key="Brush.Danger" Color="#FF6B6B" />
-    <SolidColorBrush x:Key="Brush.Success" Color="#4ADE80" />
-    <SolidColorBrush x:Key="Brush.Warning" Color="#FBBF24" />
+    <!-- ═════════ 边框 ═════════ -->
 
-    <!--
-        覆盖层。空状态、忙碌遮罩这类「盖在内容上面的一整片半透明底」，
-        深浅色下必须换色，否则浅色主题会出现整片黑。
-    -->
-    <SolidColorBrush x:Key="Brush.Scrim" Color="#B30A0D11" />
-    <SolidColorBrush x:Key="Brush.ScrimStrong" Color="#CC0A0D11" />
+    <SolidColorBrush x:Key="Brush.Border" Color="#232A3B" />
+    <SolidColorBrush x:Key="Brush.BorderSoft" Color="#161C29" />
 
-    <!-- 封面上的文字遮罩：封面本身是深色调，深浅主题都用深色，保证文字清晰 -->
-    <SolidColorBrush x:Key="Brush.CoverScrim" Color="#59000000" />
+    <!-- ═════════ 文字 ═════════ -->
 
-    <!-- 卡片阴影颜色（浅色主题下要淡一些，否则像脏印子） -->
+    <SolidColorBrush x:Key="Brush.Text" Color="#EDF2FA" />
+    <SolidColorBrush x:Key="Brush.TextDim" Color="#94A1B8" />
+    <SolidColorBrush x:Key="Brush.TextFaint" Color="#5C6880" />
+
+    <!-- ═════════ 强调 ═════════ -->
+
+    <!-- 主强调色：电光青。比常见的蓝色更像「游戏」，在近黑底上更跳 -->
+    <SolidColorBrush x:Key="Brush.Accent" Color="#3DDBFF" />
+    <SolidColorBrush x:Key="Brush.AccentSoft" Color="#333DDBFF" />
+
+    <!-- 次强调色：霓虹紫，用于渐变第二段与部分装饰 -->
+    <SolidColorBrush x:Key="Brush.AccentAlt" Color="#9B6CFF" />
+
+    <!-- 强调色的柔光，用来给按钮 / 卡片描边加发光 -->
+    <SolidColorBrush x:Key="Brush.AccentGlow" Color="#663DDBFF" />
+
+    <!-- 标题文字的渐变（青 → 紫），品牌名用 -->
+    <LinearGradientBrush x:Key="Brush.AccentGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#5FE4FF" Offset="0" />
+        <GradientStop Color="#4F8CFF" Offset="0.55" />
+        <GradientStop Color="#A97BFF" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- 顶栏 / 工具栏底部的霓虹分隔线 -->
+    <LinearGradientBrush x:Key="Brush.AccentLine" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#003DDBFF" Offset="0" />
+        <GradientStop Color="#B33DDBFF" Offset="0.35" />
+        <GradientStop Color="#8C9B6CFF" Offset="0.72" />
+        <GradientStop Color="#009B6CFF" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- ═════════ 语义色 ═════════ -->
+
+    <SolidColorBrush x:Key="Brush.Danger" Color="#FF6B81" />
+    <SolidColorBrush x:Key="Brush.Success" Color="#3DE8A0" />
+    <SolidColorBrush x:Key="Brush.Warning" Color="#FFC24B" />
+
+    <!-- ═════════ 覆盖层 ═════════ -->
+
+    <SolidColorBrush x:Key="Brush.Scrim" Color="#D9060810" />
+    <SolidColorBrush x:Key="Brush.ScrimStrong" Color="#E6060810" />
+    <SolidColorBrush x:Key="Brush.CoverScrim" Color="#66000000" />
+
+    <!-- ═════════ 阴影 / 光效参数 ═════════ -->
+
     <Color x:Key="Color.Shadow">#FF000000</Color>
-    <sys:Double x:Key="Double.ShadowOpacity">0.32</sys:Double>
+    <sys:Double x:Key="Double.ShadowOpacity">0.42</sys:Double>
 
-    <!-- 首次运行引导的顶部头图渐变 -->
-    <Color x:Key="Color.HeroStart">#22304F</Color>
-    <Color x:Key="Color.HeroEnd">#0E1116</Color>
-    <SolidColorBrush x:Key="Brush.HeroText" Color="#EDF1F7" />
-    <SolidColorBrush x:Key="Brush.HeroTextDim" Color="#9AA5B4" />
+    <Color x:Key="Color.Glow">#FF3DDBFF</Color>
+    <sys:Double x:Key="Double.GlowOpacity">0.55</sys:Double>
+    <sys:Double x:Key="Double.GlowBlur">18</sys:Double>
+
+    <!-- ═════════ 首次运行引导的头图 ═════════ -->
+
+    <Color x:Key="Color.HeroStart">#1B2A52</Color>
+    <Color x:Key="Color.HeroEnd">#0A0D14</Color>
+    <SolidColorBrush x:Key="Brush.HeroText" Color="#EDF2FA" />
+    <SolidColorBrush x:Key="Brush.HeroTextDim" Color="#94A1B8" />
 
 </ResourceDictionary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -146,7 +146,7 @@ public partial class SettingsWindow : Window
     {
         if (string.IsNullOrWhiteSpace(hex))
         {
-            var actual = ThemeManager.CurrentTheme == ThemeModes.Light ? "#2563EB" : "#4F8CFF";
+            var actual = ThemeManager.CurrentTheme == ThemeModes.Light ? "#1668E3" : "#3DDBFF";
             AccentText.Text = $"跟随主题（{actual}）";
             AccentSwatch.Background = MakeBrush(actual);
             return;
@@ -161,7 +161,7 @@ public partial class SettingsWindow : Window
     {
         if (string.IsNullOrWhiteSpace(hex))
         {
-            var actual = ThemeManager.CurrentTheme == ThemeModes.Light ? "#F4F6FA" : "#101318";
+            var actual = ThemeManager.CurrentTheme == ThemeModes.Light ? "#F4F6FA" : "#07080C";
             BgColorText.Text = $"跟随主题（{actual}）";
             BgColorSwatch.Background = MakeBrush(actual);
             return;

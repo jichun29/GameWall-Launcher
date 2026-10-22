@@ -5,49 +5,86 @@
     <!--
         浅色主题。键名与 Dark.xaml 一一对应，不能增删，
         否则 ThemeManager 切换时 DynamicResource 会找不到资源。
+
+        浅色版不是「把深色反过来」：霓虹色在亮底上会糊，所以强调色压深
+        一档，光晕强度也降到原来的三成左右，避免出现一圈脏边。
     -->
 
-    <SolidColorBrush x:Key="Brush.Window" Color="#F4F6FA" />
-    <SolidColorBrush x:Key="Brush.WindowBackdrop" Color="#F4F6FA" />
+    <SolidColorBrush x:Key="Brush.Window" Color="#F2F5FA" />
+    <SolidColorBrush x:Key="Brush.WindowBackdrop" Color="#F2F5FA" />
+
+    <!-- 浅色下这层「冷光」非常淡，只用来避免整片死白 -->
+    <RadialGradientBrush x:Key="Brush.PageGlow" GradientOrigin="0.78,0.12"
+                         Center="0.78,0.12" RadiusX="0.95" RadiusY="0.95">
+        <GradientStop Color="#22BBD0F0" Offset="0" />
+        <GradientStop Color="#0AD6E4F7" Offset="0.42" />
+        <GradientStop Color="#00000000" Offset="1" />
+    </RadialGradientBrush>
 
     <SolidColorBrush x:Key="Brush.Surface" Color="#FFFFFF" />
-    <SolidColorBrush x:Key="Brush.SurfaceAlt" Color="#EDF1F7" />
+    <SolidColorBrush x:Key="Brush.SurfaceAlt" Color="#E9EEF7" />
     <SolidColorBrush x:Key="Brush.Tooltip" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Brush.SurfaceHover" Color="#DDE5F2" />
 
-    <SolidColorBrush x:Key="Brush.Card" Color="#FFFFFF" />
-    <SolidColorBrush x:Key="Brush.CardHover" Color="#E7EDF7" />
-    <LinearGradientBrush x:Key="Brush.CardOverlay" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#00000000" Offset="0" />
-        <GradientStop Color="#33000000" Offset="0.45" />
-        <GradientStop Color="#B3000000" Offset="1" />
+    <LinearGradientBrush x:Key="Brush.BarGradient" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FFFFFF" Offset="0" />
+        <GradientStop Color="#F4F7FC" Offset="1" />
     </LinearGradientBrush>
 
-    <SolidColorBrush x:Key="Brush.Border" Color="#D3DAE5" />
+    <SolidColorBrush x:Key="Brush.Card" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Brush.CardHover" Color="#E7EDF9" />
+    <LinearGradientBrush x:Key="Brush.CardOverlay" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#00000000" Offset="0" />
+        <GradientStop Color="#2E000000" Offset="0.40" />
+        <GradientStop Color="#D90B1220" Offset="1" />
+    </LinearGradientBrush>
 
-    <SolidColorBrush x:Key="Brush.Text" Color="#18202B" />
-    <SolidColorBrush x:Key="Brush.TextDim" Color="#5A6675" />
-    <SolidColorBrush x:Key="Brush.TextFaint" Color="#8C97A6" />
+    <SolidColorBrush x:Key="Brush.CardBorderHover" Color="#802563EB" />
 
-    <SolidColorBrush x:Key="Brush.Accent" Color="#2563EB" />
-    <SolidColorBrush x:Key="Brush.AccentSoft" Color="#282563EB" />
+    <SolidColorBrush x:Key="Brush.Border" Color="#CFD8E6" />
+    <SolidColorBrush x:Key="Brush.BorderSoft" Color="#E3E9F3" />
 
-    <SolidColorBrush x:Key="Brush.Danger" Color="#D93B3B" />
-    <SolidColorBrush x:Key="Brush.Success" Color="#16A34A" />
+    <SolidColorBrush x:Key="Brush.Text" Color="#121A26" />
+    <SolidColorBrush x:Key="Brush.TextDim" Color="#55627A" />
+    <SolidColorBrush x:Key="Brush.TextFaint" Color="#8492A8" />
+
+    <SolidColorBrush x:Key="Brush.Accent" Color="#1668E3" />
+    <SolidColorBrush x:Key="Brush.AccentSoft" Color="#261668E3" />
+    <SolidColorBrush x:Key="Brush.AccentAlt" Color="#7C3AED" />
+    <SolidColorBrush x:Key="Brush.AccentGlow" Color="#331668E3" />
+
+    <LinearGradientBrush x:Key="Brush.AccentGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#0E9FD8" Offset="0" />
+        <GradientStop Color="#1668E3" Offset="0.55" />
+        <GradientStop Color="#7C3AED" Offset="1" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="Brush.AccentLine" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#001668E3" Offset="0" />
+        <GradientStop Color="#991668E3" Offset="0.35" />
+        <GradientStop Color="#7C7C3AED" Offset="0.72" />
+        <GradientStop Color="#007C3AED" Offset="1" />
+    </LinearGradientBrush>
+
+    <SolidColorBrush x:Key="Brush.Danger" Color="#D92C4B" />
+    <SolidColorBrush x:Key="Brush.Success" Color="#0E9B6B" />
     <SolidColorBrush x:Key="Brush.Warning" Color="#B45309" />
 
     <!-- 覆盖层：浅色下用白雾而不是黑幕 -->
     <SolidColorBrush x:Key="Brush.Scrim" Color="#F2F4F8" />
     <SolidColorBrush x:Key="Brush.ScrimStrong" Color="#F7F9FC" />
-
     <SolidColorBrush x:Key="Brush.CoverScrim" Color="#59000000" />
 
     <!-- 浅色下阴影要淡，否则卡片像蒙了层灰 -->
     <Color x:Key="Color.Shadow">#FF1B2735</Color>
-    <sys:Double x:Key="Double.ShadowOpacity">0.14</sys:Double>
+    <sys:Double x:Key="Double.ShadowOpacity">0.16</sys:Double>
 
-    <!-- 首次运行引导的顶部头图渐变：浅色下用蓝到白的柔和渐变 -->
-    <Color x:Key="Color.HeroStart">#BBD3F5</Color>
-    <Color x:Key="Color.HeroEnd">#F4F6FA</Color>
+    <Color x:Key="Color.Glow">#FF1668E3</Color>
+    <sys:Double x:Key="Double.GlowOpacity">0.18</sys:Double>
+    <sys:Double x:Key="Double.GlowBlur">14</sys:Double>
+
+    <Color x:Key="Color.HeroStart">#C6DAF7</Color>
+    <Color x:Key="Color.HeroEnd">#F2F5FA</Color>
     <SolidColorBrush x:Key="Brush.HeroText" Color="#12233D" />
     <SolidColorBrush x:Key="Brush.HeroTextDim" Color="#4A5A6E" />
 

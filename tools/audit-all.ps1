@@ -266,7 +266,8 @@ Start-Sleep -Milliseconds 900
 if (Invoke-ByName "⚙ 设置") {
     foreach ($w in [GWAudit]::Windows($pid32)) {
         if ($w -ne $mainHwnd) {
-            [GWAudit]::SetWindowPos($w, [IntPtr]::Zero, 960, 60, 700, 740, 0x0040) | Out-Null
+            # 用窗口自己的尺寸，不要强改大小（强改会把内容压变形，审计结果就不可信了）
+            [GWAudit]::SetWindowPos($w, [IntPtr]::Zero, 960, 40, 0, 0, 0x0001) | Out-Null
             Start-Sleep -Milliseconds 800
             Audit-Window $w "03-settings"
         }

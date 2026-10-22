@@ -38,7 +38,8 @@
         <conv:HexToBrushConverter x:Key="HexToBrush" />
         <conv:FavoriteMenuTextConverter x:Key="FavoriteMenuText" />
 
-        <!-- 视图切换按钮：选中态跟随 ViewMode -->
+        <!-- ═══════════ 视图切换按钮 ═══════════ -->
+
         <Style x:Key="Segment.Wall" TargetType="Button" BasedOn="{StaticResource Button.Segment}">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsWallMode}" Value="True">
@@ -66,6 +67,14 @@
             </Style.Triggers>
         </Style>
 
+        <!-- ═══════════ 工具栏上的次级按钮 ═══════════
+             统一 38 高、内边距 16,0，悬停时才浮出发光 -->
+        <Style x:Key="Button.Tool" TargetType="Button" BasedOn="{StaticResource Button.Base}">
+            <Setter Property="Height" Value="{StaticResource Size.ControlHeight}" />
+            <Setter Property="Padding" Value="16,0" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+        </Style>
+
         <!-- ═══════════ 卡片右键菜单 ═══════════ -->
         <ContextMenu x:Key="CardMenu" x:Shared="False">
             <MenuItem Header="启动游戏" Icon="▶" InputGestureText="双击" Command="{Binding LaunchCommand}" />
@@ -89,7 +98,7 @@
         <!-- ═══════════ 卡片：大图墙模式（默认） ═══════════ -->
         <DataTemplate x:Key="Card.Wall" DataType="{x:Type vm:GameCardViewModel}">
             <Grid x:Name="CardRoot"
-                  Margin="8"
+                  Margin="10"
                   Cursor="Hand"
                   Background="Transparent"
                   ToolTip="{Binding Tooltip}"
@@ -105,105 +114,124 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <Border x:Name="CoverBorder"
-                        Grid.Row="0"
-                        CornerRadius="12"
-                        ClipToBounds="True"
-                        Background="{DynamicResource Brush.Card}"
-                        BorderBrush="{DynamicResource Brush.Border}"
-                        BorderThickness="1">
-                    <Border.Effect>
-                        <DropShadowEffect BlurRadius="16" ShadowDepth="4"
-                                          Color="{DynamicResource Color.Shadow}"
-                                          Opacity="{DynamicResource Double.ShadowOpacity}" />
-                    </Border.Effect>
+                <!-- 卡片本体。悬停时外发光亮起 + 描边变霓虹色 -->
+                <Grid Grid.Row="0">
+                    <Border x:Name="HoverGlow"
+                            CornerRadius="16"
+                            Background="{DynamicResource Brush.AccentGlow}"
+                            Opacity="0"
+                            Margin="-3">
+                        <Border.Effect>
+                            <BlurEffect Radius="16" />
+                        </Border.Effect>
+                    </Border>
 
-                    <Grid>
-                        <!-- 封面区域。高度跟着卡片宽度走（正方形封面），
-                             不能用星号行——虚拟化面板按内容量高时星号行会塌掉，
-                             有封面的卡片和没封面的卡片就会高矮不一。 -->
-                        <Grid Height="{Binding DataContext.Settings.CardWidth, RelativeSource={RelativeSource AncestorType=Window}}">
-                            <Rectangle Fill="{DynamicResource Brush.SurfaceAlt}" />
-                            <Rectangle Fill="{Binding PlaceholderBrush}" />
-                            <!-- 只有用户自己指定的封面才满铺；exe 图标是 32×32 的小图，
-                                 拉满会糊成一团黑影，所以下面单独当徽标居中摆。 -->
-                            <Image Source="{Binding PrimaryImage, Converter={StaticResource PathToImage}}"
-                                   Stretch="UniformToFill"
-                                   RenderOptions.BitmapScalingMode="HighQuality"
-                                   Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
-                            <Border Width="76" Height="76" CornerRadius="16"
-                                    Background="#33FFFFFF"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    Visibility="{Binding ShowIcon, Converter={StaticResource BoolToVis}}">
-                                <Image Source="{Binding IconImage, Converter={StaticResource PathToImage}}"
-                                       Width="60" Height="60"
-                                       Stretch="Uniform"
-                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                    <Border x:Name="CoverBorder"
+                            CornerRadius="14"
+                            ClipToBounds="True"
+                            Background="{DynamicResource Brush.Card}"
+                            BorderBrush="{DynamicResource Brush.Border}"
+                            BorderThickness="1">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="18" ShadowDepth="5"
+                                              Color="{DynamicResource Color.Shadow}"
+                                              Opacity="{DynamicResource Double.ShadowOpacity}" />
+                        </Border.Effect>
+
+                        <Grid>
+                            <!-- 封面区域。高度跟着卡片宽度走（正方形封面），
+                                 不能用星号行——虚拟化面板按内容量高时星号行会塌掉，
+                                 有封面的卡片和没封面的卡片就会高矮不一。 -->
+                            <Grid Height="{Binding DataContext.Settings.CardWidth, RelativeSource={RelativeSource AncestorType=Window}}">
+                                <Rectangle Fill="{DynamicResource Brush.SurfaceAlt}" />
+                                <Rectangle Fill="{Binding PlaceholderBrush}" />
+                                <!-- 只有用户自己指定的封面才满铺；exe 图标是 32×32 的小图，
+                                     拉满会糊成一团黑影，所以下面单独当徽标居中摆。 -->
+                                <Image Source="{Binding PrimaryImage, Converter={StaticResource PathToImage}}"
+                                       Stretch="UniformToFill"
+                                       RenderOptions.BitmapScalingMode="HighQuality"
+                                       Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
+                                <Border Width="84" Height="84" CornerRadius="20"
+                                        Background="#26FFFFFF"
+                                        BorderBrush="#33FFFFFF"
+                                        BorderThickness="1"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Visibility="{Binding ShowIcon, Converter={StaticResource BoolToVis}}">
+                                    <Image Source="{Binding IconImage, Converter={StaticResource PathToImage}}"
+                                           Width="62" Height="62"
+                                           Stretch="Uniform"
+                                           RenderOptions.BitmapScalingMode="HighQuality" />
+                                </Border>
+                                <TextBlock Text="{Binding InitialGlyph}"
+                                           FontSize="66"
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           Opacity="0.72"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Visibility="{Binding UsesPlaceholder, Converter={StaticResource BoolToVis}}" />
+                            </Grid>
+
+                            <!-- 底部渐变遮罩 + 文字。只在有真实封面时才压暗，
+                                 否则会把居中摆的图标徽标和占位渐变一起糊掉。 -->
+                            <Rectangle Fill="{DynamicResource Brush.CardOverlay}" VerticalAlignment="Bottom" Height="148"
+                                       Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
+
+                            <!-- 左上角角标 -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12">
+                                <Border Background="#CC000000" CornerRadius="9" Padding="7,3" Margin="0,0,6,0"
+                                        Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="★" FontSize="11" Foreground="#FFFFC53D" />
+                                </Border>
+                                <Border Background="#CCB3261E" CornerRadius="9" Padding="7,3"
+                                        Visibility="{Binding IsMissing, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="文件缺失" FontSize="10" Foreground="White" />
+                                </Border>
+                            </StackPanel>
+
+                            <!-- 名称 / 副标题：左右留 16，底部留 15，不再贴着封面边线 -->
+                            <StackPanel VerticalAlignment="Bottom" Margin="16,0,16,15">
+                                <TextBlock Text="{Binding Name}"
+                                           Foreground="White"
+                                           FontSize="15"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"
+                                           TextOptions.TextFormattingMode="Ideal"
+                                           Visibility="{Binding DataContext.Settings.ShowLabels, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="{Binding Subtitle}"
+                                           Foreground="#B8FFFFFF"
+                                           FontSize="11"
+                                           Margin="0,4,0,0"
+                                           TextTrimming="CharacterEllipsis"
+                                           Visibility="{Binding DataContext.Settings.ShowLabels, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}" />
+                            </StackPanel>
+
+                            <!-- 悬停播放按钮 -->
+                            <Border x:Name="PlayOverlay" Background="{DynamicResource Brush.CoverScrim}" Opacity="0" CornerRadius="14">
+                                <Border Width="62" Height="62"
+                                        CornerRadius="31"
+                                        Background="{DynamicResource Brush.AccentGradient}"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="22" ShadowDepth="0" Opacity="0.8"
+                                                          Color="{DynamicResource Color.Glow}" />
+                                    </Border.Effect>
+                                    <Path Data="M 0 0 L 19 11 L 0 22 Z"
+                                          Fill="#04070D"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Margin="5,0,0,0" />
+                                </Border>
                             </Border>
-                            <TextBlock Text="{Binding InitialGlyph}"
-                                       FontSize="64"
-                                       FontWeight="Bold"
-                                       Foreground="White"
-                                       Opacity="0.72"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Visibility="{Binding UsesPlaceholder, Converter={StaticResource BoolToVis}}" />
                         </Grid>
-
-                        <!-- 底部渐变遮罩 + 文字。只在有真实封面时才压暗，
-                             否则会把居中摆的图标徽标和占位渐变一起糊掉。 -->
-                        <Rectangle Fill="{DynamicResource Brush.CardOverlay}" VerticalAlignment="Bottom" Height="130"
-                                   Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
-
-                        <!-- 左上角角标 -->
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8">
-                            <Border Background="#CC000000" CornerRadius="8" Padding="6,2" Margin="0,0,5,0"
-                                    Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="★" FontSize="11" Foreground="#FFFFC53D" />
-                            </Border>
-                            <Border Background="#CCB3261E" CornerRadius="8" Padding="6,2"
-                                    Visibility="{Binding IsMissing, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="文件缺失" FontSize="10" Foreground="White" />
-                            </Border>
-                        </StackPanel>
-
-                        <!-- 名称 / 副标题 -->
-                        <StackPanel VerticalAlignment="Bottom" Margin="12,0,12,10">
-                            <TextBlock Text="{Binding Name}"
-                                       Foreground="White"
-                                       FontSize="14"
-                                       FontWeight="SemiBold"
-                                       TextTrimming="CharacterEllipsis"
-                                       Visibility="{Binding DataContext.Settings.ShowLabels, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}" />
-                            <TextBlock Text="{Binding Subtitle}"
-                                       Foreground="#B3FFFFFF"
-                                       FontSize="11"
-                                       Margin="0,3,0,0"
-                                       TextTrimming="CharacterEllipsis"
-                                       Visibility="{Binding DataContext.Settings.ShowLabels, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}" />
-                        </StackPanel>
-
-                        <!-- 悬停播放按钮 -->
-                        <Border x:Name="PlayOverlay" Background="{DynamicResource Brush.CoverScrim}" Opacity="0" CornerRadius="12">
-                            <Border Width="54" Height="54"
-                                    CornerRadius="27"
-                                    Background="{DynamicResource Brush.Accent}"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center">
-                                <Path Data="M 0 0 L 18 10 L 0 20 Z"
-                                      Fill="White"
-                                      HorizontalAlignment="Center"
-                                      VerticalAlignment="Center"
-                                      Margin="4,0,0,0" />
-                            </Border>
-                        </Border>
-                    </Grid>
-                </Border>
+                    </Border>
+                </Grid>
 
                 <!-- 悬停显示标签 -->
                 <ItemsControl x:Name="TagRow" Grid.Row="1" ItemsSource="{Binding Tags}"
                               ItemTemplate="{StaticResource TagTemplate}"
-                              Margin="2,7,2,0" Opacity="0">
+                              Margin="4,11,4,0" Opacity="0">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel />
@@ -216,18 +244,20 @@
                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
                     <Setter TargetName="CoverBorder" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
                     <Setter TargetName="CoverBorder" Property="BorderThickness" Value="2" />
+                    <Setter TargetName="HoverGlow" Property="Opacity" Value="0.7" />
                 </DataTrigger>
                 <Trigger SourceName="CoverBorder" Property="IsMouseOver" Value="True">
                     <Setter TargetName="PlayOverlay" Property="Opacity" Value="1" />
                     <Setter TargetName="TagRow" Property="Opacity" Value="1" />
-                    <Setter TargetName="CoverBorder" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                    <Setter TargetName="HoverGlow" Property="Opacity" Value="0.9" />
+                    <Setter TargetName="CoverBorder" Property="BorderBrush" Value="{DynamicResource Brush.CardBorderHover}" />
                 </Trigger>
             </DataTemplate.Triggers>
         </DataTemplate>
 
         <!-- ═══════════ 卡片：紧凑模式 ═══════════ -->
         <DataTemplate x:Key="Card.Compact" DataType="{x:Type vm:GameCardViewModel}">
-            <Border Width="132" Height="170" Margin="6" CornerRadius="10"
+            <Border x:Name="CompactRoot" Width="146" Height="188" Margin="8" CornerRadius="12"
                     Background="{DynamicResource Brush.Card}"
                     BorderBrush="{DynamicResource Brush.Border}"
                     BorderThickness="1"
@@ -244,7 +274,7 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Border Grid.Row="0" CornerRadius="10,10,0,0" ClipToBounds="True">
+                    <Border Grid.Row="0" CornerRadius="11,11,0,0" ClipToBounds="True">
                         <Grid>
                             <Rectangle Fill="{DynamicResource Brush.SurfaceAlt}" />
                             <Rectangle Fill="{Binding PlaceholderBrush}" />
@@ -252,15 +282,18 @@
                                    Stretch="UniformToFill"
                                    RenderOptions.BitmapScalingMode="HighQuality"
                                    Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
-                            <!-- 紧凑卡片里的图标只有 44×44 的位置，直接把 32×32 的图标摆进去也不会糊 -->
-                            <Image Source="{Binding IconImage, Converter={StaticResource PathToImage}}"
-                                   Width="44" Height="44"
-                                   Stretch="Uniform"
-                                   RenderOptions.BitmapScalingMode="HighQuality"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Visibility="{Binding ShowIcon, Converter={StaticResource BoolToVis}}" />
+                            <!-- 紧凑卡片里的图标只有 48×48 的位置，直接把 32×32 的图标摆进去也不会糊 -->
+                            <Border Width="56" Height="56" CornerRadius="14" Background="#26FFFFFF"
+                                    BorderBrush="#2EFFFFFF" BorderThickness="1"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Visibility="{Binding ShowIcon, Converter={StaticResource BoolToVis}}">
+                                <Image Source="{Binding IconImage, Converter={StaticResource PathToImage}}"
+                                       Width="42" Height="42"
+                                       Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                            </Border>
                             <TextBlock Text="{Binding InitialGlyph}"
-                                       FontSize="34" FontWeight="Bold"
+                                       FontSize="38" FontWeight="Bold"
                                        Foreground="White" Opacity="0.72"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Visibility="{Binding UsesPlaceholder, Converter={StaticResource BoolToVis}}" />
@@ -268,19 +301,25 @@
                     </Border>
                     <TextBlock Grid.Row="1"
                                Text="{Binding Name}"
-                               Margin="8,6,8,8"
-                               FontSize="11"
+                               Margin="11,8,11,10"
+                               FontSize="12"
                                TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource Brush.Text}" />
                 </Grid>
             </Border>
+            <DataTemplate.Triggers>
+                <Trigger SourceName="CompactRoot" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="CompactRoot" Property="Background" Value="{DynamicResource Brush.CardHover}" />
+                    <Setter TargetName="CompactRoot" Property="BorderBrush" Value="{DynamicResource Brush.CardBorderHover}" />
+                </Trigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
 
         <!-- ═══════════ 卡片：列表模式 ═══════════ -->
         <DataTemplate x:Key="Card.List" DataType="{x:Type vm:GameCardViewModel}">
-            <Border Margin="0,0,0,6"
-                    Padding="10"
-                    CornerRadius="10"
+            <Border x:Name="RowRoot" Margin="0,0,0,8"
+                    Padding="14,12"
+                    CornerRadius="12"
                     Background="{DynamicResource Brush.Card}"
                     BorderBrush="{DynamicResource Brush.Border}"
                     BorderThickness="1"
@@ -301,7 +340,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Border Grid.Column="0" Width="44" Height="56" CornerRadius="6" ClipToBounds="True"
+                    <Border Grid.Column="0" Width="52" Height="66" CornerRadius="9" ClipToBounds="True"
                             Background="{DynamicResource Brush.SurfaceAlt}">
                         <Grid>
                             <Rectangle Fill="{Binding PlaceholderBrush}" />
@@ -309,30 +348,30 @@
                                    Stretch="UniformToFill"
                                    RenderOptions.BitmapScalingMode="HighQuality"
                                    Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
-                            <!-- 列表里缩略图只有 44×56，图标按原样等比摆进去，不拉伸 -->
+                            <!-- 列表里缩略图只有 52×66，图标按原样等比摆进去，不拉伸 -->
                             <Image Source="{Binding IconImage, Converter={StaticResource PathToImage}}"
-                                   Width="32" Height="32"
+                                   Width="36" Height="36"
                                    Stretch="Uniform"
                                    RenderOptions.BitmapScalingMode="HighQuality"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    Visibility="{Binding ShowIcon, Converter={StaticResource BoolToVis}}" />
-                            <TextBlock Text="{Binding InitialGlyph}" FontSize="20" FontWeight="Bold"
+                            <TextBlock Text="{Binding InitialGlyph}" FontSize="22" FontWeight="Bold"
                                        Foreground="White" Opacity="0.72"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Visibility="{Binding UsesPlaceholder, Converter={StaticResource BoolToVis}}" />
                         </Grid>
                     </Border>
 
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
-                        <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
+                        <TextBlock Text="{Binding Name}" FontSize="14.5" FontWeight="SemiBold"
                                    Foreground="{DynamicResource Brush.Text}" TextTrimming="CharacterEllipsis" />
                         <TextBlock Text="{Binding ExecutablePath}" FontSize="11"
                                    Foreground="{DynamicResource Brush.TextFaint}"
-                                   TextTrimming="CharacterEllipsis" Margin="0,3,0,0" />
+                                   TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
                     </StackPanel>
 
                     <ItemsControl Grid.Column="2" ItemsSource="{Binding Tags}" VerticalAlignment="Center"
-                                  Margin="10,0" ItemTemplate="{StaticResource TagTemplate}">
+                                  Margin="14,0" ItemTemplate="{StaticResource TagTemplate}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel />
@@ -342,19 +381,26 @@
 
                     <TextBlock Grid.Column="3" Text="{Binding Subtitle}" FontSize="11"
                                Foreground="{DynamicResource Brush.TextDim}"
-                               VerticalAlignment="Center" Margin="10,0,16,0" />
+                               VerticalAlignment="Center" Margin="14,0,20,0" />
 
                     <Button Grid.Column="4" Style="{StaticResource Button.Accent}"
-                            Content="启动" Padding="16,6" VerticalAlignment="Center"
+                            Content="启动" Padding="22,0" Height="34" VerticalAlignment="Center"
                             Command="{Binding LaunchCommand}" />
                 </Grid>
             </Border>
+            <DataTemplate.Triggers>
+                <Trigger SourceName="RowRoot" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="RowRoot" Property="Background" Value="{DynamicResource Brush.CardHover}" />
+                    <Setter TargetName="RowRoot" Property="BorderBrush" Value="{DynamicResource Brush.CardBorderHover}" />
+                </Trigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
     </Window.Resources>
 
     <Grid x:Name="RootGrid">
-        <!-- ═════════ 背景层：主题底色 → 自定义纯色 → 自定义图片 → 主题遮罩 ═════════ -->
+        <!-- ═════════ 背景层：主题底色 → 右上冷光 → 自定义纯色 → 自定义图片 → 主题遮罩 ═════════ -->
         <Rectangle Fill="{DynamicResource Brush.Window}" />
+        <Rectangle Fill="{DynamicResource Brush.PageGlow}" />
         <Rectangle Fill="{Binding Settings.BackgroundColor, Converter={StaticResource HexToBrush}}" />
         <Image Source="{Binding Settings.BackgroundImagePath, Converter={StaticResource PathToImage}}"
                Stretch="UniformToFill"
@@ -372,86 +418,98 @@
             </Grid.RowDefinitions>
 
             <!-- ═════════ 顶栏：品牌 + 筛选 + 窗口按钮 ═════════ -->
-            <Border Grid.Row="0"
-                    Background="{DynamicResource Brush.Surface}"
-                    BorderBrush="{DynamicResource Brush.Border}"
-                    BorderThickness="0,0,0,1"
-                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                <Grid Margin="16,10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" MinWidth="60" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+            <Grid Grid.Row="0">
+                <Border Background="{DynamicResource Brush.BarGradient}"
+                        BorderBrush="{DynamicResource Brush.BorderSoft}"
+                        BorderThickness="0,0,0,1"
+                        MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                    <Grid Margin="20,0,16,0" Height="64">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" MinWidth="60" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                    <!-- 品牌 -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- 应用图标直接引用打包的 PNG，和 exe / 托盘图标同一套设计 -->
-                        <Image Width="30" Height="30" VerticalAlignment="Center"
-                               RenderOptions.BitmapScalingMode="HighQuality"
-                               Source="pack://application:,,,/Assets/logo-256.png"
-                               ToolTip="GameWall">
-                            <Image.Effect>
-                                <DropShadowEffect BlurRadius="10" ShadowDepth="0"
-                                                  Opacity="0.35"
-                                                  Color="{DynamicResource Color.Shadow}" />
-                            </Image.Effect>
-                        </Image>
-                        <TextBlock Text="GameWall" Style="{StaticResource Text.Title}" FontSize="16"
-                                   VerticalAlignment="Center" Margin="10,0,16,0" />
-                    </StackPanel>
+                        <!-- 品牌 -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,22,0">
+                            <!-- 应用图标直接引用打包的 PNG，和 exe / 托盘图标同一套设计 -->
+                            <Image Width="34" Height="34" VerticalAlignment="Center"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   Source="pack://application:,,,/Assets/logo-256.png"
+                                   ToolTip="GameWall">
+                                <Image.Effect>
+                                    <DropShadowEffect BlurRadius="16" ShadowDepth="0"
+                                                      Opacity="0.55"
+                                                      Color="{DynamicResource Color.Glow}" />
+                                </Image.Effect>
+                            </Image>
+                            <StackPanel VerticalAlignment="Center" Margin="12,0,0,0">
+                                <TextBlock Text="GameWall" FontSize="17" FontWeight="Bold"
+                                           Foreground="{DynamicResource Brush.AccentGradient}"
+                                           TextOptions.TextFormattingMode="Ideal" />
+                                <!-- 副标题要和主标题拉开行距，不能用负 Margin 硬挤，否则会压住字形下沿 -->
+                                <TextBlock Text="游戏墙 · 本地游戏库" FontSize="10"
+                                           Foreground="{DynamicResource Brush.TextFaint}"
+                                           Margin="1,2,0,0" />
+                            </StackPanel>
+                        </StackPanel>
 
-                    <!-- 搜索框：放在 * 列里，窗口变窄时它先收缩，绝不挤走右边的按钮 -->
-                    <Grid Grid.Column="1" MaxWidth="280" Height="34" HorizontalAlignment="Left"
-                          VerticalAlignment="Center" Margin="0,0,10,0">
-                        <TextBox x:Name="SearchBox"
-                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=120}"
-                                 Style="{StaticResource TextBox.Base}"
-                                 Height="34"
-                                 Padding="30,0,8,0"
-                                 KeyDown="SearchBox_KeyDown" />
-                        <TextBlock Text="🔍" FontSize="12" Margin="11,0,0,0"
-                                   VerticalAlignment="Center" HorizontalAlignment="Left"
-                                   IsHitTestVisible="False"
-                                   Foreground="{DynamicResource Brush.TextFaint}" />
-                        <TextBlock Text="搜索游戏名 / 标签…"
-                                   Margin="30,0,10,0" VerticalAlignment="Center"
-                                   IsHitTestVisible="False" FontSize="12"
-                                   TextTrimming="CharacterEllipsis"
-                                   Foreground="{DynamicResource Brush.TextFaint}"
-                                   Visibility="{Binding SearchText, Converter={StaticResource StringToVis}, ConverterParameter=invert}" />
+                        <!-- 搜索框：放在 * 列里，窗口变窄时它先收缩，绝不挤走右边的按钮 -->
+                        <Grid Grid.Column="1" MaxWidth="300" Height="{StaticResource Size.ControlHeight}"
+                              HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0">
+                            <TextBox x:Name="SearchBox"
+                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=120}"
+                                     Style="{StaticResource TextBox.Base}"
+                                     Height="{StaticResource Size.ControlHeight}"
+                                     Padding="34,0,10,0"
+                                     KeyDown="SearchBox_KeyDown" />
+                            <TextBlock Text="🔍" FontSize="12" Margin="13,0,0,0"
+                                       VerticalAlignment="Center" HorizontalAlignment="Left"
+                                       IsHitTestVisible="False"
+                                       Foreground="{DynamicResource Brush.TextFaint}" />
+                            <TextBlock Text="搜索游戏名 / 标签…"
+                                       Margin="34,0,12,0" VerticalAlignment="Center"
+                                       IsHitTestVisible="False" FontSize="12"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource Brush.TextFaint}"
+                                       Visibility="{Binding SearchText, Converter={StaticResource StringToVis}, ConverterParameter=invert}" />
+                        </Grid>
+
+                        <!-- 标签筛选 -->
+                        <ComboBox Grid.Column="2" Width="136" Height="{StaticResource Size.ControlHeight}"
+                                  Margin="0,0,14,0" VerticalAlignment="Center"
+                                  ItemsSource="{Binding TagOptions}"
+                                  SelectedItem="{Binding SelectedTag, Mode=TwoWay}"
+                                  ToolTip="按标签筛选" />
+
+                        <CheckBox Grid.Column="3" Content="收藏" Margin="0,0,16,0" VerticalAlignment="Center"
+                                  IsChecked="{Binding FavoritesOnly, Mode=TwoWay}"
+                                  ToolTip="只显示已收藏的游戏" />
+
+                        <!-- 窗口按钮：永远贴右，且不参与收缩 -->
+                        <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="PinButton" Content="📌" ToolTip="窗口置顶" Margin="0,0,4,0"
+                                    Style="{StaticResource Button.Icon}" Click="PinButton_Click" />
+                            <Button Content="─" ToolTip="最小化" Style="{StaticResource Button.Icon}" Click="Minimize_Click" />
+                            <Button Content="□" ToolTip="最大化 / 还原" Style="{StaticResource Button.Icon}" Click="Maximize_Click" />
+                            <Button Content="✕" ToolTip="关闭到托盘" Style="{StaticResource Button.Icon}"
+                                    Foreground="{DynamicResource Brush.Danger}" Click="Close_Click" />
+                        </StackPanel>
                     </Grid>
+                </Border>
 
-                    <!-- 标签筛选 -->
-                    <ComboBox Grid.Column="2" Width="126" Height="34" Margin="0,0,10,0" VerticalAlignment="Center"
-                              ItemsSource="{Binding TagOptions}"
-                              SelectedItem="{Binding SelectedTag, Mode=TwoWay}"
-                              ToolTip="按标签筛选" />
-
-                    <CheckBox Grid.Column="3" Content="收藏" Margin="0,0,12,0" VerticalAlignment="Center"
-                              IsChecked="{Binding FavoritesOnly, Mode=TwoWay}"
-                              ToolTip="只显示已收藏的游戏" />
-
-                    <!-- 窗口按钮：永远贴右，且不参与收缩 -->
-                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button x:Name="PinButton" Content="📌" ToolTip="窗口置顶" Margin="0,0,4,0"
-                                Style="{StaticResource Button.Icon}" Click="PinButton_Click" />
-                        <Button Content="─" ToolTip="最小化" Style="{StaticResource Button.Icon}" Click="Minimize_Click" />
-                        <Button Content="□" ToolTip="最大化 / 还原" Style="{StaticResource Button.Icon}" Click="Maximize_Click" />
-                        <Button Content="✕" ToolTip="关闭到托盘" Style="{StaticResource Button.Icon}"
-                                Foreground="{DynamicResource Brush.Danger}" Click="Close_Click" />
-                    </StackPanel>
-                </Grid>
-            </Border>
+                <!-- 顶栏下沿的霓虹细线 -->
+                <Border Height="1" VerticalAlignment="Bottom" Background="{DynamicResource Brush.AccentLine}" />
+            </Grid>
 
             <!-- ═════════ 工具栏：操作按钮 + 视图切换 ═════════ -->
             <Border Grid.Row="1"
-                    Background="{DynamicResource Brush.Surface}"
-                    BorderBrush="{DynamicResource Brush.Border}"
+                    Background="{DynamicResource Brush.BarGradient}"
+                    BorderBrush="{DynamicResource Brush.BorderSoft}"
                     BorderThickness="0,0,0,1"
-                    Padding="16,0,16,9">
+                    Padding="20,12,20,14">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -459,39 +517,45 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- 操作按钮：空间不够时自动换行，不会顶出窗口
-                         统一 Height=34，与标题栏的搜索框/窗口按钮保持同一基线 -->
+                         统一 38 高，与标题栏的搜索框/窗口按钮保持同一基线 -->
                     <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="＋ 添加游戏" Style="{StaticResource Button.Accent}"
-                                Height="34" Command="{Binding AddGameCommand}" Margin="0,0,8,0"
+                                Height="{StaticResource Size.ControlHeight}" Padding="20,0" Margin="0,0,10,0"
+                                Command="{Binding AddGameCommand}"
                                 ToolTip="选择一个 .exe 或快捷方式加进游戏墙" />
-                        <Button Content="🔎 搜索添加" Height="34" Command="{Binding SearchAddCommand}"
-                                Margin="0,0,8,0" ToolTip="按名字在本地硬盘里找 exe" />
-                        <Button Content="⟳ 扫描" Height="34" Command="{Binding ScanCommand}"
-                                Margin="0,0,8,0" ToolTip="扫描已配置的游戏目录" />
-                        <Button Content="⤓ 平台导入" Height="34" Command="{Binding ImportCommand}"
+                        <Button Content="🔎 搜索添加" Style="{StaticResource Button.Tool}"
+                                Command="{Binding SearchAddCommand}"
+                                ToolTip="按名字在本地硬盘里找 exe" />
+                        <Button Content="⟳ 扫描" Style="{StaticResource Button.Tool}"
+                                Command="{Binding ScanCommand}"
+                                ToolTip="扫描已配置的游戏目录" />
+                        <Button Content="⤓ 平台导入" Style="{StaticResource Button.Tool}"
+                                Command="{Binding ImportCommand}"
                                 ToolTip="从 Steam / Epic / GOG 读取已安装游戏" />
                     </WrapPanel>
 
-                    <!-- 视图切换 + 设置：固定贴右。外框总高同样收在 34 -->
+                    <!-- 视图切换 + 设置：固定贴右。外框总高同样收在 38 -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
-                                Margin="10,0,0,0">
-                        <Border Background="{DynamicResource Brush.SurfaceAlt}" CornerRadius="8" Padding="2"
-                                Margin="0,0,8,0" Height="34">
+                                Margin="12,0,0,0">
+                        <Border Background="{DynamicResource Brush.SurfaceAlt}" CornerRadius="11" Padding="3"
+                                Margin="0,0,10,0" Height="{StaticResource Size.ControlHeight}"
+                                BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1">
                             <StackPanel Orientation="Horizontal">
-                                <Button Content="▦" ToolTip="大图墙" Width="32" Height="30"
+                                <Button Content="▦" ToolTip="大图墙" Width="36" Height="30"
                                         Style="{StaticResource Segment.Wall}"
                                         Command="{Binding SetViewModeCommand}" CommandParameter="Wall" />
-                                <Button Content="☰" ToolTip="列表模式" Width="32" Height="30"
+                                <Button Content="☰" ToolTip="列表模式" Width="36" Height="30"
                                         Style="{StaticResource Segment.List}"
                                         Command="{Binding SetViewModeCommand}" CommandParameter="List" />
-                                <Button Content="▤" ToolTip="紧凑模式" Width="32" Height="30"
+                                <Button Content="▤" ToolTip="紧凑模式" Width="36" Height="30"
                                         Style="{StaticResource Segment.Compact}"
                                         Command="{Binding SetViewModeCommand}" CommandParameter="Compact" />
                             </StackPanel>
                         </Border>
 
-                        <Button Content="⚙ 设置" ToolTip="设置" Style="{StaticResource Button.Segment}"
-                                Height="34" Command="{Binding SettingsCommand}" Padding="12,0" />
+                        <Button Content="⚙ 设置" ToolTip="设置" Style="{StaticResource Button.Base}"
+                                Height="{StaticResource Size.ControlHeight}" Padding="16,0"
+                                Command="{Binding SettingsCommand}" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -502,14 +566,14 @@
                 <ScrollViewer Style="{StaticResource ScrollViewer.Clean}"
                               CanContentScroll="True"
                               Visibility="{Binding IsWallMode, Converter={StaticResource BoolToVis}}"
-                              Padding="14,14,14,24">
+                              Padding="10,16,10,28">
                     <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource Card.Wall}"
                                   VirtualizingPanel.IsVirtualizing="True">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <!-- 只生成视口里的那几行，游戏再多首屏也不变慢。
                                      CardWidth 直接取设置里的卡片宽度，面板第一轮就能算对列数 -->
-                                <ctl:VirtualizingWrapPanel CardMargin="8"
+                                <ctl:VirtualizingWrapPanel CardMargin="10"
                                                            CardWidth="{Binding Settings.CardWidth}" />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
@@ -520,7 +584,7 @@
                 <ScrollViewer Style="{StaticResource ScrollViewer.Clean}"
                               CanContentScroll="True"
                               Visibility="{Binding IsListMode, Converter={StaticResource BoolToVis}}"
-                              Padding="16,14,16,24">
+                              Padding="20,16,20,28">
                     <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource Card.List}"
                                   VirtualizingPanel.IsVirtualizing="True">
                         <ItemsControl.ItemsPanel>
@@ -535,7 +599,7 @@
                 <ScrollViewer Style="{StaticResource ScrollViewer.Clean}"
                               CanContentScroll="True"
                               Visibility="{Binding IsCompactMode, Converter={StaticResource BoolToVis}}"
-                              Padding="14,14,14,24">
+                              Padding="10,10,10,28">
                     <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource Card.Compact}"
                                   VirtualizingPanel.IsVirtualizing="True">
                         <ItemsControl.ItemsPanel>
@@ -549,24 +613,31 @@
                 <!-- 空状态：一个游戏都没有 -->
                 <Border Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}"
                         Background="{DynamicResource Brush.Scrim}">
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
-                        <TextBlock Text="🎮" FontSize="60" HorizontalAlignment="Center" />
-                        <TextBlock Text="游戏墙还是空的" Style="{StaticResource Text.Title}"
-                                   HorizontalAlignment="Center" Margin="0,16,0,8" />
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="600">
+                        <Border Width="104" Height="104" CornerRadius="26"
+                                Background="{DynamicResource Brush.AccentGlow}"
+                                HorizontalAlignment="Center" Opacity="0.9">
+                            <Border.Effect>
+                                <BlurEffect Radius="26" />
+                            </Border.Effect>
+                        </Border>
+                        <TextBlock Text="🎮" FontSize="62" HorizontalAlignment="Center" Margin="0,-78,0,26" />
+                        <TextBlock Text="游戏墙还是空的" Style="{StaticResource Text.Title}" FontSize="24"
+                                   HorizontalAlignment="Center" Margin="0,0,0,10" />
                         <TextBlock Text="把散落在桌面上的游戏收进来，用封面墙的方式一眼找到它们。"
                                    Style="{StaticResource Text.Dim}" TextWrapping="Wrap"
-                                   TextAlignment="Center" Margin="0,0,0,22" />
+                                   TextAlignment="Center" Margin="0,0,0,28" />
 
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <Button Content="＋ 手动添加游戏" Style="{StaticResource Button.Accent}"
-                                    Command="{Binding AddGameCommand}" Margin="0,0,10,0" Padding="18,9" />
-                            <Button Content="⟳ 自动扫描" Command="{Binding ScanCommand}" Padding="18,9" Margin="0,0,10,0" />
-                            <Button Content="⤓ 从平台导入" Command="{Binding ImportCommand}" Padding="18,9" />
+                                    Command="{Binding AddGameCommand}" Margin="0,0,12,0" Padding="22,0" Height="40" />
+                            <Button Content="⟳ 自动扫描" Command="{Binding ScanCommand}" Padding="22,0" Height="40" Margin="0,0,12,0" />
+                            <Button Content="⤓ 从平台导入" Command="{Binding ImportCommand}" Padding="22,0" Height="40" />
                         </StackPanel>
 
-                        <TextBlock Text="提示：也可以把 .exe 或快捷方式直接拖进这个窗口。"
+                        <TextBlock Text="提示：也可以把 .exe 或快捷方式直接拖进这个窗口，或按 Ctrl+V 粘贴路径。"
                                    Style="{StaticResource Text.Subtitle}"
-                                   HorizontalAlignment="Center" Margin="0,20,0,0" />
+                                   HorizontalAlignment="Center" Margin="0,24,0,0" />
                     </StackPanel>
                 </Border>
 
@@ -574,12 +645,12 @@
                 <Border Visibility="{Binding IsFilteredEmpty, Converter={StaticResource BoolToVis}}"
                         Background="{DynamicResource Brush.Scrim}">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="没有匹配的游戏" Style="{StaticResource Text.Title}"
+                        <TextBlock Text="没有匹配的游戏" Style="{StaticResource Text.Title}" FontSize="22"
                                    HorizontalAlignment="Center" />
                         <TextBlock Text="试试清空搜索关键词，或把标签切回「全部」。"
-                                   Style="{StaticResource Text.Dim}" HorizontalAlignment="Center" Margin="0,9,0,18" />
+                                   Style="{StaticResource Text.Dim}" HorizontalAlignment="Center" Margin="0,12,0,22" />
                         <Button Content="清空筛选" Command="{Binding ClearFiltersCommand}"
-                                HorizontalAlignment="Center" Padding="18,8" />
+                                HorizontalAlignment="Center" Padding="24,0" Height="38" />
                     </StackPanel>
                 </Border>
 
@@ -587,21 +658,21 @@
                 <Border Background="{DynamicResource Brush.ScrimStrong}"
                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
-                        <ProgressBar IsIndeterminate="True" Width="200" Height="3"
+                        <ProgressBar IsIndeterminate="True" Width="240" Height="3"
                                      Foreground="{DynamicResource Brush.Accent}"
                                      Background="Transparent" BorderThickness="0" />
                         <TextBlock Text="{Binding BusyText}" Style="{StaticResource Text.Dim}"
                                    TextWrapping="Wrap" TextAlignment="Center"
-                                   HorizontalAlignment="Center" Margin="0,14,0,0" />
+                                   HorizontalAlignment="Center" Margin="0,18,0,0" />
                     </StackPanel>
                 </Border>
             </Grid>
 
             <!-- ═════════ 状态栏 ═════════ -->
             <Border Grid.Row="3"
-                    Background="{DynamicResource Brush.Surface}"
-                    BorderBrush="{DynamicResource Brush.Border}"
-                    BorderThickness="0,1,0,0" Padding="16,7">
+                    Background="{DynamicResource Brush.BarGradient}"
+                    BorderBrush="{DynamicResource Brush.BorderSoft}"
+                    BorderThickness="0,1,0,0" Padding="20,9">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -611,13 +682,15 @@
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
                         <TextBlock Style="{StaticResource Text.Subtitle}">
                             <Run Text="共 " />
-                            <Run Text="{Binding TotalCount, Mode=OneWay}" FontWeight="SemiBold" />
+                            <Run Text="{Binding TotalCount, Mode=OneWay}" FontWeight="SemiBold"
+                                 Foreground="{DynamicResource Brush.Accent}" />
                             <Run Text=" 个游戏" />
                         </TextBlock>
-                        <TextBlock Text="·" Style="{StaticResource Text.Subtitle}" Margin="8,0" />
+                        <TextBlock Text="·" Style="{StaticResource Text.Subtitle}" Margin="10,0" />
                         <TextBlock Style="{StaticResource Text.Subtitle}">
                             <Run Text="当前显示 " />
-                            <Run Text="{Binding VisibleCount, Mode=OneWay}" FontWeight="SemiBold" />
+                            <Run Text="{Binding VisibleCount, Mode=OneWay}" FontWeight="SemiBold"
+                                 Foreground="{DynamicResource Brush.Accent}" />
                         </TextBlock>
                     </StackPanel>
 

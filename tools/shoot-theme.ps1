@@ -49,6 +49,25 @@ if (Test-Path $dlg) {
     Move-Item -Force $dlg (Join-Path $outDir "$Prefix-dialog-settings.png")
 }
 
+# shot-dialogs.ps1 会额外留一张 shot-main.png，内容和 wall 重复，顺手清掉
+$stray = Join-Path $outDir 'shot-main.png'
+if (Test-Path $stray) { Remove-Item -Force $stray }
+
+# 5) 首次运行引导：把 FirstRunCompleted 复位重启一次，抓完再改回来
+$s = Get-Content $sp -Raw -Encoding UTF8 | ConvertFrom-Json
+$s.FirstRunCompleted = $false
+[System.IO.File]::WriteAllText($sp, (ConvertTo-Json -InputObject $s -Depth 5), $utf8)
+Get-Process -Name GameWall -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Milliseconds 600
+Start-Process -FilePath $exe | Out-Null
+Start-Sleep -Seconds 3
+& powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'capture.ps1') `
+    -Title '欢迎使用 GameWall' -Out (Join-Path $outDir "$Prefix-firstrun.png") 2>&1 | Out-Null
+
+$s = Get-Content $sp -Raw -Encoding UTF8 | ConvertFrom-Json
+$s.FirstRunCompleted = $true
+[System.IO.File]::WriteAllText($sp, (ConvertTo-Json -InputObject $s -Depth 5), $utf8)
+
 Get-ChildItem (Join-Path $outDir "$Prefix-*.png") | ForEach-Object {
     Write-Host ("{0}  {1} bytes" -f $_.Name, $_.Length)
 }

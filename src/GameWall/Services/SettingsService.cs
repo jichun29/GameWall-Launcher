@@ -32,7 +32,7 @@ public sealed class SettingsService
         // 主题三态归一：System / Dark / Light，非法值回退深色（默认）
         loaded.Theme = ThemeModes.Normalize(loaded.Theme);
 
-        // 强调色留空 = 跟随主题默认色（深色 #4F8CFF / 浅色 #2563EB），
+        // 强调色留空 = 跟随主题默认色（深色 #3DDBFF / 浅色 #1668E3），
         // 只有用户明确填了非法值才清空回「跟随主题」
         if (!string.IsNullOrWhiteSpace(loaded.AccentColor) && !IsValidHex(loaded.AccentColor))
         {

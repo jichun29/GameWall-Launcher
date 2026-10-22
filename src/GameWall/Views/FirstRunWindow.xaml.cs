@@ -16,6 +16,37 @@ public partial class FirstRunWindow : Window
     /// <summary>用户点了「开始添加游戏」，主窗口据此自动弹出选择文件对话框。</summary>
     public bool ShouldAddGame { get; private set; }
 
+    /// <summary>窗口无边框，按住空白处可以拖动。</summary>
+    private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        // 点在按钮上的不接管，否则按钮点不下去
+        if (e.OriginalSource is DependencyObject src && IsInteractive(src))
+        {
+            return;
+        }
+
+        if (e.ButtonState == MouseButtonState.Pressed)
+        {
+            DragMove();
+        }
+    }
+
+    /// <summary>判断这个元素（或它的祖先）是不是可交互控件。</summary>
+    private static bool IsInteractive(DependencyObject source)
+    {
+        for (var node = source; node is not null; node = System.Windows.Media.VisualTreeHelper.GetParent(node))
+        {
+            if (node is System.Windows.Controls.Button
+                or System.Windows.Controls.Primitives.ButtonBase
+                or System.Windows.Controls.TextBox)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void Start_Click(object sender, RoutedEventArgs e)
     {
         ShouldAddGame = true;
