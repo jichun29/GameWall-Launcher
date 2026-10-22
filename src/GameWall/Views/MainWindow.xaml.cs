@@ -782,6 +782,10 @@ public partial class MainWindow : Window
             // 外观可能改了卡片宽度 / 标签显隐，重建卡片以刷新布局
             _vm.ReloadCards();
 
+            // 卡片宽度是绑在 Settings.CardHeight 上的派生值，AppSettings 不是
+            // 可观察对象，改完必须显式通知一次，否则封面还停在旧高度上
+            _vm.NotifySettingsChanged();
+
             AutoStartService.SetEnabled(_vm.Settings.AutoStart);
             ApplyTopmostVisual(_vm.Settings.Topmost);
             Topmost = _vm.Settings.Topmost;

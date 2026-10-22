@@ -92,15 +92,8 @@ Click-Button "▤"; Save-Window "card.png"
 Click-Button "☰"; Save-Window "list.png"
 Click-Button "▤"; Save-Window "card.png"
 
-# 「关于」窗口单独抓一张（ShowInTaskbar=False，只能用 Win32 句柄找）
-Click-Button "ⓘ 关于"
-Save-Window "dialog-about.png" "关于 GameWall"
-$aboutHwnd = [GameWallShooter]::Find([uint32]$proc.Id, "关于 GameWall")
-if ($aboutHwnd -ne [IntPtr]::Zero) {
-    # 关闭：发 WM_CLOSE，避免依赖焦点
-    [GameWallShooter]::PostMessage($aboutHwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
-}
-Start-Sleep -Milliseconds 600
+# 关于窗口不再进截图：作者信息用 README 的「关于作者」表格说明就够了，
+# 截图里那点信息量还比不上表格清楚。
 
 # 「游戏工具箱」也抓一张：硬件一览 + 优化方案 + 电源方案
 Click-Button "🎛 工具箱"

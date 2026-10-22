@@ -1,4 +1,4 @@
-<Window x:Class="GameWall.Views.MainWindow"
+﻿<Window x:Class="GameWall.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -157,10 +157,12 @@
                         </Border.Effect>
 
                         <Grid>
-                            <!-- 封面区域高度跟着卡片宽度走（正方形封面），
-                                 不能用星号行——虚拟化面板按内容量高时星号行会塌掉，
+                            <!-- 封面是 2:3 的竖版比例（高 = 宽 × 3/2），高度取 CardHeight
+                                 而不是 CardWidth —— 正方形会把 Steam 那张 600×900 的封面
+                                 上下裁掉一大截。这里必须用固定高度，不能用星号行：
+                                 虚拟化面板按内容量高时星号行会塌掉，
                                  有封面的卡片和没封面的卡片就会高矮不一。 -->
-                            <Grid Height="{Binding DataContext.Settings.CardWidth, RelativeSource={RelativeSource AncestorType=Window}}">
+                            <Grid Height="{Binding DataContext.Settings.CardHeight, RelativeSource={RelativeSource AncestorType=Window}}">
                                 <Rectangle Fill="{DynamicResource Brush.SurfaceAlt}" />
                                 <Rectangle Fill="{Binding PlaceholderBrush}" />
                                 <!-- 只有用户自己指定的封面才满铺；exe 图标是 32×32 的小图，
@@ -195,9 +197,10 @@
                             </Grid>
 
                             <!-- 底部渐变遮罩 + 文字。只在有真实封面时才压暗，
-                                 否则会把居中摆的图标徽标和占位渐变一起糊掉。 -->
+                                 否则会把居中摆的图标徽标和占位渐变一起糊掉。
+                                 竖版封面高 225 时，108 的遮罩刚好盖住「名称 + 副标题」这一带。 -->
                             <Rectangle x:Name="CardOverlayRect" Fill="{DynamicResource Brush.CardOverlay}"
-                                       VerticalAlignment="Bottom" Height="112"
+                                       VerticalAlignment="Bottom" Height="108"
                                        Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
 
                             <!-- 左上角角标 -->
@@ -426,7 +429,8 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Border Grid.Column="0" Width="52" Height="66" CornerRadius="9" ClipToBounds="True"
+                    <!-- 缩略图也用 2:3（54×81），和卡片式的竖版封面保持同一比例 -->
+                    <Border Grid.Column="0" Width="54" Height="81" CornerRadius="9" ClipToBounds="True"
                             Background="{DynamicResource Brush.SurfaceAlt}">
                         <Grid>
                             <Rectangle Fill="{Binding PlaceholderBrush}" />
@@ -434,7 +438,7 @@
                                    Stretch="UniformToFill"
                                    RenderOptions.BitmapScalingMode="HighQuality"
                                    Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}" />
-                            <!-- 列表里缩略图只有 52×66，图标按原样等比摆进去，不拉伸 -->
+                            <!-- 列表里缩略图只有 54×81，图标按原样等比摆进去，不拉伸 -->
                             <Image Source="{Binding IconImage, Converter={StaticResource PathToImage}}"
                                    Width="36" Height="36"
                                    Stretch="Uniform"

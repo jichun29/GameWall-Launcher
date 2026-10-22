@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace GameWall.Models;
 
@@ -73,11 +74,27 @@ public sealed class AppSettings
     public WallViewMode ViewMode { get; set; } = WallViewMode.Card;
 
     /// <summary>
-    /// 卡片宽度（像素），封面高度跟着宽度走（正方形）。
+    /// 卡片宽度（像素）。封面按 3:4 的竖版比例跟着变高（见 <see cref="CardHeight"/>）。
     /// 默认 150 —— 一屏能放下 6~8 张，接近 Steam 库的密度；
     /// 想更大气可以拖到 260。
     /// </summary>
     public double CardWidth { get; set; } = 150;
+
+    /// <summary>
+    /// 封面高宽比（高 ÷ 宽）= 3/2。
+    /// 取 2:3 的竖版而不是正方形：Steam / GOG 的库封面本身就是 600×900 的竖图，
+    /// 正方形要么把两边裁掉、要么上下留黑边；横屏宣传图也不会被拉成方块。
+    /// </summary>
+    public const double CoverAspectRatio = 3.0 / 2.0;
+
+    /// <summary>
+    /// 封面高度（只读派生值）= 卡片宽度 × 4/3。
+    /// 界面直接绑这个，改宽度时高度自动跟着走，不用在两处各调一次。
+    /// 派生值不进 settings.json —— 反序列化时它也不能赋值，写进去只会造成一份会和
+    /// CardWidth 不一致的冗余数据。
+    /// </summary>
+    [JsonIgnore]
+    public double CardHeight => Math.Round(CardWidth * CoverAspectRatio);
 
     /// <summary>可选的卡片宽度下限</summary>
     public const double MinCardWidth = 110;

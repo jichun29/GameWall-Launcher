@@ -1069,6 +1069,16 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSystemTheme));
     }
 
+    /// <summary>
+    /// 通知界面「设置对象的内容变了，所有 Settings.* 绑定请重新求值」。
+    ///
+    /// AppSettings 是普通 POCO（不实现 INotifyPropertyChanged），所以
+    /// 在设置窗口里改完 CardWidth / ShowLabels 之后，绑定
+    /// DataContext.Settings.CardHeight 的卡片不会自己刷新 —— 必须由这里
+    /// 把 Settings 整个属性通知一遍，WPF 才会重跑整条绑定路径。
+    /// </summary>
+    public void NotifySettingsChanged() => OnPropertyChanged(nameof(Settings));
+
     /// <summary>当前是否处于「跟随系统」模式（供界面显示/调试用）。</summary>
     public bool IsSystemTheme =>
         string.Equals(ThemeModes.Normalize(Settings.Theme), ThemeModes.System, StringComparison.Ordinal);
