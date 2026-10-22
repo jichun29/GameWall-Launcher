@@ -252,8 +252,8 @@ GameWall/
 ### 命令行
 
 ```powershell
-git clone https://github.com/your-name/GameWall.git
-cd GameWall
+git clone https://github.com/jichun29/GameWall-Launcher.git
+cd GameWall-Launcher
 
 # 调试运行
 dotnet run --project src/GameWall/GameWall.csproj
