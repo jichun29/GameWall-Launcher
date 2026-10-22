@@ -5,6 +5,10 @@
 # 远程桌面 / 没有桌面合成的会话里，PrintWindow 只能拿到黑屏、
 # CopyFromScreen 只能拿到壁纸，只有这条路径拿得到真实像素。
 #
+# 注意：抓出来的画面取决于 %AppData%\GameWall\library.json 里当前有什么游戏。
+# README 里那套图用的是 18 个带 Steam 官方竖版封面的示例库；
+# 本地库只有两三个游戏时重拍会显得空，先用 tools/seed-demo.ps1 铺一批示例数据再拍。
+#
 # 用法：
 #   .\tools\shoot-offline.ps1              # 全套 16 张覆盖到 docs/screenshots
 #   .\tools\shoot-offline.ps1 -OutDir tmp  # 输出到别的目录先看效果
