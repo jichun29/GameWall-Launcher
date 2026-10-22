@@ -354,7 +354,9 @@ GameWall/
 │  ├─ audit-layout.ps1        # UIA 排版审计（单窗口越界 / 重叠检测）
 │  ├─ audit-all.ps1           # 一次性审计全部窗口，结果图存 docs/audit/
 │  ├─ seed-demo.ps1           # 造演示数据
-│  └─ make-logo.py            # 生成图标：ico（10 尺寸）+ PNG（Pillow）
+│  ├─ make-logo.py            # 生成图标：ico（10 尺寸）+ PNG（Pillow）
+│  ├─ upload-asset.ps1        # 把构建产物传到 release（uploads.github.com）
+│  └─ push-files-api.ps1      # github.com 不通时改走 api.github.com 提交
 └─ docs/screenshots/          # README 用图
 ```
 
