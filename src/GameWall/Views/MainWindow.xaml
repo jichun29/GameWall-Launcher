@@ -355,10 +355,17 @@
 
                     <!-- 品牌 -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource Brush.Accent}">
-                            <TextBlock Text="G" FontSize="16" FontWeight="Bold" Foreground="White"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                        <!-- 应用图标直接引用打包的 PNG，和 exe / 托盘图标同一套设计 -->
+                        <Image Width="30" Height="30" VerticalAlignment="Center"
+                               RenderOptions.BitmapScalingMode="HighQuality"
+                               Source="pack://application:,,,/Assets/logo-256.png"
+                               ToolTip="GameWall">
+                            <Image.Effect>
+                                <DropShadowEffect BlurRadius="10" ShadowDepth="0"
+                                                  Opacity="0.35"
+                                                  Color="{DynamicResource Color.Shadow}" />
+                            </Image.Effect>
+                        </Image>
                         <TextBlock Text="GameWall" Style="{StaticResource Text.Title}" FontSize="16"
                                    VerticalAlignment="Center" Margin="10,0,16,0" />
                     </StackPanel>

@@ -318,7 +318,9 @@ GameWall/
 │  ├─ Themes/
 │  │  ├─ Dark.xaml / Light.xaml      # 两套色板（同名键一一对应）
 │  │  └─ Controls.xaml               # 全部自绘控件样式
-│  ├─ Assets/GameWall.ico            # 应用图标（exe 图标 + 托盘图标共用）
+│  ├─ Assets/
+│  │  ├─ GameWall.ico                # 应用图标（exe 图标 + 托盘图标共用，10 个尺寸）
+│  │  └─ logo-256.png / logo-1024.png # 界面里的品牌标识
 │  └─ Converters/Converters.cs       # 路径→图片、布尔→可见性等
 ├─ tools/
 │  ├─ capture.ps1             # 抓单个窗口截图的小工具

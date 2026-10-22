@@ -27,13 +27,21 @@
                     </LinearGradientBrush>
                 </Border.Background>
                 <Grid Margin="26,0">
-                    <StackPanel VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Image Grid.Column="0" Width="52" Height="52" Margin="0,0,16,0"
+                           VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality"
+                           Source="pack://application:,,,/Assets/logo-256.png" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="欢迎来到 GameWall" FontSize="22" FontWeight="Bold"
                                    Foreground="{DynamicResource Brush.HeroText}" />
                         <TextBlock Text="把散落各处的游戏，收进一面墙。"
                                    Foreground="{DynamicResource Brush.HeroTextDim}" Margin="0,6,0,0" />
                     </StackPanel>
-                    <Button Content="✕" Style="{StaticResource Button.Icon}" HorizontalAlignment="Right"
+                    <Button Grid.Column="1" Content="✕" Style="{StaticResource Button.Icon}" HorizontalAlignment="Right"
                             VerticalAlignment="Top" Margin="0,14,-6,0" Click="Skip_Click" />
                 </Grid>
             </Border>

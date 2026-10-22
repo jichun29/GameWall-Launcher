@@ -43,8 +43,10 @@
     <!--
       图标既作为 exe 文件图标（ApplicationIcon），也作为 WPF 资源打包，
       这样托盘图标可以直接从 pack:// 资源里取多尺寸版本，不依赖 exe 路径。
+      logo-256.png 给界面里的品牌标识用（比从 ICO 里取更清晰）。
     -->
     <Resource Include="Assets\GameWall.ico" />
+    <Resource Include="Assets\logo-256.png" />
   </ItemGroup>
 
   <ItemGroup>
