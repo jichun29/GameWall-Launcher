@@ -14,6 +14,7 @@
 
 - [功能特性](#功能特性)
 - [界面预览](#界面预览)
+- [图标](#图标)
 - [系统要求](#系统要求)
 - [安装与运行](#安装与运行)
 - [使用说明](#使用说明)
@@ -93,8 +94,31 @@
 
 ![设置](docs/screenshots/dark-dialog-settings.png)
 
+### 首次运行引导
+
+![首次运行](docs/screenshots/dark-firstrun.png)
+
 > 截图由 `tools/shoot-theme.ps1` / `tools/make-screenshots.ps1` 在程序运行时自动抓取
 > （`PrintWindow` + `PW_RENDERFULLCONTENT`，对 WPF 无边框窗口也能拿到真实渲染内容）。
+
+---
+
+## 图标
+
+![图标](src/GameWall/Assets/logo-256.png)
+
+应用图标是**一面墙 + 一个播放键**：超椭圆底盘上摆三张微旋转的封面卡，中间一张正面卡带投影，
+卡里嵌一个蓝紫渐变的播放按钮。ICO 内含 10 个尺寸（16 → 256），24px 以下自动切换到去掉侧卡与
+投影的简化版，任务栏里不糊。
+
+重新生成（需要 Pillow）：
+
+```bash
+python tools/make-logo.py
+```
+
+产物写入 `src/GameWall/Assets/`：`GameWall.ico`（exe / 托盘图标）、`logo-256.png`（顶栏品牌标识）、
+`logo-1024.png`（高清母版）。
 
 ---
 
@@ -330,7 +354,7 @@ GameWall/
 │  ├─ audit-layout.ps1        # UIA 排版审计（单窗口越界 / 重叠检测）
 │  ├─ audit-all.ps1           # 一次性审计全部窗口，结果图存 docs/audit/
 │  ├─ seed-demo.ps1           # 造演示数据
-│  └─ make-icon.ps1           # 现场生成多尺寸 .ico（无需外部素材）
+│  └─ make-logo.py            # 生成图标：ico（10 尺寸）+ PNG（Pillow）
 └─ docs/screenshots/          # README 用图
 ```
 
