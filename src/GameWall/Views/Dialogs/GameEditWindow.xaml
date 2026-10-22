@@ -107,8 +107,9 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <!-- 底部按钮 -->
-            <Border Grid.Row="2" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0"
+            <!-- 底部按钮：显式给不透明背景，滚动内容不会从按钮背后透出来 -->
+            <Border Grid.Row="2" Background="{DynamicResource Brush.Surface}"
+                    BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0"
                     Padding="22,14">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="取消" Click="Cancel_Click" Margin="0,0,10,0" Padding="20,8" />

@@ -325,7 +325,8 @@ GameWall/
 │  ├─ make-screenshots.ps1    # 自动切换视图并批量截图
 │  ├─ shoot-theme.ps1         # 切换主题后重新出图（深/浅两套）
 │  ├─ shot-dialogs.ps1        # 抓设置对话框
-│  ├─ audit-layout.ps1        # UIA 排版审计（越界 / 重叠检测）
+│  ├─ audit-layout.ps1        # UIA 排版审计（单窗口越界 / 重叠检测）
+│  ├─ audit-all.ps1           # 一次性审计全部窗口，结果图存 docs/audit/
 │  ├─ seed-demo.ps1           # 造演示数据
 │  └─ make-icon.ps1           # 现场生成多尺寸 .ico（无需外部素材）
 └─ docs/screenshots/          # README 用图

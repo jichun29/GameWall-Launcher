@@ -42,6 +42,13 @@ foreach ($n in @('wall', 'list', 'compact')) {
     }
 }
 
+# 4) 再抓一张设置对话框（同一主题，避免用旧主题的残留图）
+& powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'shot-dialogs.ps1') -ProcessName GameWall -OutDir $outDir 2>&1 | Out-Null
+$dlg = Join-Path $outDir 'dialog-设置.png'
+if (Test-Path $dlg) {
+    Move-Item -Force $dlg (Join-Path $outDir "$Prefix-dialog-settings.png")
+}
+
 Get-ChildItem (Join-Path $outDir "$Prefix-*.png") | ForEach-Object {
     Write-Host ("{0}  {1} bytes" -f $_.Name, $_.Length)
 }

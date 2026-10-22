@@ -418,39 +418,40 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- 操作按钮：空间不够时自动换行，不会顶出窗口 -->
+                    <!-- 操作按钮：空间不够时自动换行，不会顶出窗口
+                         统一 Height=34，与标题栏的搜索框/窗口按钮保持同一基线 -->
                     <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="＋ 添加游戏" Style="{StaticResource Button.Accent}"
-                                Command="{Binding AddGameCommand}" Margin="0,0,8,0"
+                                Height="34" Command="{Binding AddGameCommand}" Margin="0,0,8,0"
                                 ToolTip="选择一个 .exe 或快捷方式加进游戏墙" />
-                        <Button Content="🔎 搜索添加" Command="{Binding SearchAddCommand}" Margin="0,0,8,0"
-                                ToolTip="按名字在本地硬盘里找 exe" />
-                        <Button Content="⟳ 扫描" Command="{Binding ScanCommand}" Margin="0,0,8,0"
-                                ToolTip="扫描已配置的游戏目录" />
-                        <Button Content="⤓ 平台导入" Command="{Binding ImportCommand}"
+                        <Button Content="🔎 搜索添加" Height="34" Command="{Binding SearchAddCommand}"
+                                Margin="0,0,8,0" ToolTip="按名字在本地硬盘里找 exe" />
+                        <Button Content="⟳ 扫描" Height="34" Command="{Binding ScanCommand}"
+                                Margin="0,0,8,0" ToolTip="扫描已配置的游戏目录" />
+                        <Button Content="⤓ 平台导入" Height="34" Command="{Binding ImportCommand}"
                                 ToolTip="从 Steam / Epic / GOG 读取已安装游戏" />
                     </WrapPanel>
 
-                    <!-- 视图切换 + 设置：固定贴右 -->
+                    <!-- 视图切换 + 设置：固定贴右。外框总高同样收在 34 -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                                 Margin="10,0,0,0">
                         <Border Background="{DynamicResource Brush.SurfaceAlt}" CornerRadius="8" Padding="2"
-                                Margin="0,0,8,0">
+                                Margin="0,0,8,0" Height="34">
                             <StackPanel Orientation="Horizontal">
-                                <Button Content="▦" ToolTip="大图墙" Width="32"
+                                <Button Content="▦" ToolTip="大图墙" Width="32" Height="30"
                                         Style="{StaticResource Segment.Wall}"
                                         Command="{Binding SetViewModeCommand}" CommandParameter="Wall" />
-                                <Button Content="☰" ToolTip="列表模式" Width="32"
+                                <Button Content="☰" ToolTip="列表模式" Width="32" Height="30"
                                         Style="{StaticResource Segment.List}"
                                         Command="{Binding SetViewModeCommand}" CommandParameter="List" />
-                                <Button Content="▤" ToolTip="紧凑模式" Width="32"
+                                <Button Content="▤" ToolTip="紧凑模式" Width="32" Height="30"
                                         Style="{StaticResource Segment.Compact}"
                                         Command="{Binding SetViewModeCommand}" CommandParameter="Compact" />
                             </StackPanel>
                         </Border>
 
                         <Button Content="⚙ 设置" ToolTip="设置" Style="{StaticResource Button.Segment}"
-                                Command="{Binding SettingsCommand}" Padding="12,5" />
+                                Height="34" Command="{Binding SettingsCommand}" Padding="12,0" />
                     </StackPanel>
                 </Grid>
             </Border>

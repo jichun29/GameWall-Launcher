@@ -84,3 +84,6 @@ $RECYCLE.BIN/
 .DS_Store
 *.swp
 *~
+
+# 排版审计脚本的输出（临时截图，不进仓库）
+docs/audit/

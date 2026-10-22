@@ -123,14 +123,21 @@
                 </Border>
             </Grid>
 
-            <!-- 底部 -->
-            <Border Grid.Row="3" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0"
+            <!-- 底部：提示文字与按钮分列，文案再长也不会钻到按钮下面 -->
+            <Border Grid.Row="3" Background="{DynamicResource Brush.Surface}"
+                    BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0"
                     Padding="22,14" Margin="0,16,0,0">
                 <Grid>
-                    <TextBlock x:Name="HintText" Style="{StaticResource Text.Subtitle}"
-                               VerticalAlignment="Center"
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="HintText" Grid.Column="0" Style="{StaticResource Text.Subtitle}"
+                               VerticalAlignment="Center" Margin="0,0,16,0"
+                               TextTrimming="CharacterEllipsis"
                                Text="双击结果直接添加，或选中后点「添加选中」。" />
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
+                                VerticalAlignment="Center">
                         <Button Content="取消" Click="Cancel_Click" Margin="0,0,10,0" Padding="20,8" />
                         <Button Content="添加选中" Style="{StaticResource Button.Accent}"
                                 Click="Add_Click" Padding="24,8" />
