@@ -141,12 +141,19 @@
         <DataTemplate x:Key="HardwareRowTemplate">
             <Grid Margin="0,0,0,7">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="112" />
+                    <!--
+                        标签列用 SharedSizeGroup 让同一个分区里所有行共用一条对齐基线：
+                        固定 112px 时，像「C:（本地磁盘 · Win11Pro X64）」「Generic PnP Monitor（主屏）」
+                        这类长名字会被 CharacterEllipsis 直接截掉后半截。
+                        改成 Auto + 共享宽度后按最长的那条撑开，标题仍然左对齐，长名字换行而不是被截。
+                    -->
+                    <ColumnDefinition Width="Auto" MinWidth="112" MaxWidth="260" SharedSizeGroup="HardwareLabel" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding Label}" FontSize="12"
-                           Foreground="{DynamicResource Brush.TextDim}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Label}" FontSize="12" Margin="0,0,14,0"
+                           Foreground="{DynamicResource Brush.TextDim}"
+                           TextWrapping="Wrap" VerticalAlignment="Top" />
                 <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="12.5"
                            Foreground="{DynamicResource Brush.Text}" TextWrapping="Wrap" />
                 <TextBlock Grid.Column="2" Text="{Binding Hint}" FontSize="11" Margin="12,0,0,0"
@@ -159,7 +166,8 @@
         <DataTemplate x:Key="HardwareSectionTemplate">
             <Border Margin="0,0,0,12" Padding="18,15" CornerRadius="12"
                     Background="{DynamicResource Brush.Surface}"
-                    BorderBrush="{DynamicResource Brush.BorderSoft}" BorderThickness="1">
+                    BorderBrush="{DynamicResource Brush.BorderSoft}" BorderThickness="1"
+                    Grid.IsSharedSizeScope="True">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                         <TextBlock Text="{Binding Glyph}" FontSize="14" Margin="0,0,8,0" />

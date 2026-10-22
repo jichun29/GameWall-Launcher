@@ -655,8 +655,9 @@ namespace GameWall.ViewModels
             var disks = new HardwareSection("磁盘", "🗄");
             foreach (var disk in _snapshot.Disks)
             {
-                var label = string.IsNullOrWhiteSpace(disk.Label) ? disk.DriveType : $"{disk.DriveType} · {disk.Label}";
-                AddRow(disks, $"{disk.Drive}（{label}）", disk.UsageText, $"已用 {disk.UsedPercent:0}%");
+                // 卷标（Win11Pro X64 / 软件 / 游戏M2 之类）是用户自己起的名字，
+                // 长短不一，塞进标签列会把右边的数值挤歪，所以这里只留盘符和介质类型。
+                AddRow(disks, $"{disk.Drive}（{disk.DriveType}）", disk.UsageText, $"已用 {disk.UsedPercent:0}%");
             }
 
             AddSection(disks, "未能读取到磁盘信息");

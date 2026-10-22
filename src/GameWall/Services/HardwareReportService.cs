@@ -72,8 +72,9 @@ namespace GameWall.Services
             if (snapshot.Disks.Count == 0) Line("未能读取到磁盘信息");
             foreach (var disk in snapshot.Disks)
             {
-                var label = string.IsNullOrWhiteSpace(disk.Label) ? string.Empty : $"（{disk.Label}）";
-                Line($"{disk.Drive}{label}  {disk.DriveType} / {disk.FileSystem}");
+                // 卷标放到行尾，前面保持「盘符（介质类型）」的固定格式，多行看下来是对齐的。
+                var label = string.IsNullOrWhiteSpace(disk.Label) ? string.Empty : $"  [{disk.Label}]";
+                Line($"{disk.Drive}（{disk.DriveType}）  {disk.FileSystem}{label}");
                 Line($"   {disk.UsageText}  已用 {disk.UsedPercent:0}%");
             }
 
