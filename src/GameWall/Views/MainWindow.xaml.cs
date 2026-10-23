@@ -66,6 +66,9 @@ public partial class MainWindow : Window
     {
         ThemeManager.ApplyAll(_vm.Settings);
 
+        // 顶栏那个太阳/月亮按钮的图标要与实际生效的主题一致
+        ApplyThemeVisual();
+
         // 监听系统深浅色变化：只有主题设为「跟随系统」时才真的换肤
         SystemThemeWatcher.SystemThemeChanged += OnSystemThemeChanged;
         SystemThemeWatcher.Start();
@@ -380,6 +383,9 @@ public partial class MainWindow : Window
             // 主窗口背景色绑定的是 Settings.BackgroundColor，空值时靠转换器回退，
             // 所以这里通知一次让它重算
             _vm.NotifyThemeChanged();
+
+            // 跟随系统时主题是被动变的，顶栏那个切换按钮的图标也要跟着翻
+            ApplyThemeVisual();
         }
         catch (Exception ex)
         {
@@ -564,6 +570,52 @@ public partial class MainWindow : Window
 
         HandleDroppedFiles(candidates);
         return true;
+    }
+
+    // ══════════════ 主题快速切换 ══════════════
+
+    /// <summary>
+    /// 顶栏的深浅色快速切换。
+    ///
+    /// 点一下就把主题改成明确的一种（深色 / 浅色），而不是在「跟随系统」和三态之间循环 ——
+    /// 用户点这个按钮的意思就是「我现在就要看另一种」，如果还留着 System，
+    /// 系统颜色一变又被翻回去，会让人以为按钮失灵。
+    /// 想恢复跟随系统，去设置面板里选。
+    /// </summary>
+    private void ThemeButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var next = string.Equals(ThemeManager.CurrentTheme, ThemeModes.Light, StringComparison.Ordinal)
+                ? ThemeModes.Dark
+                : ThemeModes.Light;
+
+            _vm.Settings.Theme = next;
+            _vm.SaveSettings();
+
+            ThemeManager.Apply(next);
+            ThemeManager.ApplyAccent(_vm.Settings.AccentColor);
+
+            // 主窗口背景色绑的是 Settings.BackgroundColor（空值 = 跟随主题），
+            // AppSettings 不是可观察对象，必须显式通知一次才会按新主题重算
+            _vm.NotifyThemeChanged();
+            ApplyThemeVisual();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("快速切换主题失败", ex);
+        }
+    }
+
+    /// <summary>
+    /// 让按钮上的图标和提示语跟当前实际生效的主题对上：
+    /// 深色下显示太阳（点一下变浅），浅色下显示月亮（点一下变深）。
+    /// </summary>
+    private void ApplyThemeVisual()
+    {
+        var isLight = string.Equals(ThemeManager.CurrentTheme, ThemeModes.Light, StringComparison.Ordinal);
+        ThemeButton.Content = isLight ? "🌙" : "☀";
+        ThemeButton.ToolTip = isLight ? "切换到深色主题" : "切换到浅色主题";
     }
 
     private void PinButton_Click(object sender, RoutedEventArgs e)
@@ -881,6 +933,9 @@ public partial class MainWindow : Window
             AutoStartService.SetEnabled(_vm.Settings.AutoStart);
             ApplyTopmostVisual(_vm.Settings.Topmost);
             Topmost = _vm.Settings.Topmost;
+
+            // 设置里可能改了主题（包括改成「跟随系统」），按钮图标要跟上
+            ApplyThemeVisual();
         }
     }
 

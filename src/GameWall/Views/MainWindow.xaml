@@ -675,6 +675,10 @@
 
                         <!-- 窗口按钮：永远贴右，且不参与收缩 -->
                         <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- 深浅色快速切换：图标显示的是「点一下会切到哪个主题」，
+                                 当前深色就显示太阳，当前浅色就显示月亮 -->
+                            <Button x:Name="ThemeButton" Content="☀" ToolTip="切换到浅色主题" Margin="0,0,4,0"
+                                    Style="{StaticResource Button.Icon}" Click="ThemeButton_Click" />
                             <Button x:Name="PinButton" Content="📌" ToolTip="窗口置顶" Margin="0,0,4,0"
                                     Style="{StaticResource Button.Icon}" Click="PinButton_Click" />
                             <Button Content="─" ToolTip="最小化" Style="{StaticResource Button.Icon}" Click="Minimize_Click" />
