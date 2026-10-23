@@ -208,6 +208,15 @@ public sealed class AppSettings
     public bool AutoCheckUpdate { get; set; } = true;
 
     /// <summary>
+    /// 允许联网下载游戏封面（默认开）。
+    ///
+    /// 本地 Steam 缓存里没有封面时，用 appid 去 Steam 的图片 CDN 取官方竖版封面。
+    /// 这是程序里唯一会主动联网的功能，只下载图片、不上传任何数据；
+    /// 想完全离线就把这个开关关掉，届时没缓存的游戏会显示首字母封面。
+    /// </summary>
+    public bool DownloadCoverFromWeb { get; set; } = true;
+
+    /// <summary>
     /// 更新下载源。<c>auto</c> = 直连失败时自动切换到内置加速源，
     /// 也可以填 <c>github</c> / <c>ghproxy</c> / <c>ghfast</c> / <c>moeyy</c> 强制指定。
     /// </summary>

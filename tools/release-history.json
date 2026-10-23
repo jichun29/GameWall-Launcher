@@ -111,5 +111,11 @@
         "version":  "1.0.17",
         "size":  66483213,
         "sha256":  "F4B87BD08E65A3C213798D3D219E4DF5BA49A192DC6034DC666E54BAF0A6043C"
+    },
+    {
+        "date":  "2026-10-23",
+        "version":  "1.0.18",
+        "size":  66485345,
+        "sha256":  "592FFEE4B0AEBD81D2384F33190FEDC584B5C9BB2FF2B52710D039FB465C986C"
     }
 ]

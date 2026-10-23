@@ -85,6 +85,11 @@ public sealed class SettingsService
 
         Current = loaded;
 
+        // 把「是否允许联网补封面」同步给封面服务。
+        // 放在这里（而不是只在界面改设置时同步），是因为这个开关决定程序启动后
+        // 第一次自动扫描的行为，必须在任何游戏卡片渲染之前就生效。
+        CoverArtService.OnlineEnabled = loaded.DownloadCoverFromWeb;
+
         // 首次运行（或配置文件被杀掉）时立刻落盘一份，
         // 这样用户一启动就能在 %AppData%\GameWall\ 里看到 settings.json，
         // 也避免「改了设置但进程被杀、配置还没写过」的情况。

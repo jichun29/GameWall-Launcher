@@ -649,7 +649,23 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     private static void LocalizeName(GameEntry entry)
     {
-        if (string.IsNullOrWhiteSpace(entry.Name) || HasChinese(entry.Name))
+        if (string.IsNullOrWhiteSpace(entry.Name))
+        {
+            return;
+        }
+
+        // 先修「中文名 / English」这种中英混排的旧数据。
+        // 老版本把 Steam 的整串官方名收了进来，墙上会出现
+        // 「人类一败涂地 / Human Fall Flat」这种长标题。
+        var trimmed = SteamNameService.TrimMixedName(entry.Name);
+        if (!string.Equals(trimmed, entry.Name, StringComparison.Ordinal))
+        {
+            Logger.Info($"游戏名去掉英文尾巴：{entry.Name} → {trimmed}");
+            entry.Name = trimmed;
+        }
+
+        // 已经有中文就不再去查英文名了 —— 玩家自己改过的名字要尊重。
+        if (HasChinese(entry.Name))
         {
             return;
         }
@@ -974,6 +990,15 @@ public sealed class MainViewModel : ObservableObject
             var added = 0;
             var skipped = 0;
 
+            // 扫描明细全部写进运行日志。
+            // 用户拿日志来反馈「扫出来不对」时，光有「扫描完成」是没法定位的，
+            // 得能看到每个候选的 exe 路径、最终采用的显示名、以及封面命中了哪条线索。
+            Logger.Info($"开始扫描 {roots.Count} 个目录，共发现 {candidates.Count} 个候选程序");
+            foreach (var root in roots)
+            {
+                Logger.Info($"  扫描目录：{root}");
+            }
+
             // 扫到的 exe 如果正好在某个平台（Steam / Epic / GOG）的安装目录里，
             // 就把它登记成「平台游戏」而不是裸 exe：
             //   · 启动时走 steam://rungameid/<id>，能正确触发 DRM 校验和云存档
@@ -990,6 +1015,7 @@ public sealed class MainViewModel : ObservableObject
                 if (_library.FindByExecutable(candidate.FilePath) is not null)
                 {
                     skipped++;
+                    Logger.Info($"  跳过（库里已有）：{candidate.FilePath}");
                     continue;
                 }
 
@@ -999,6 +1025,7 @@ public sealed class MainViewModel : ObservableObject
                     && _library.Games.Any(g => string.Equals(g.LaunchUri, platform.LaunchUri, StringComparison.OrdinalIgnoreCase)))
                 {
                     skipped++;
+                    Logger.Info($"  跳过（平台游戏已存在 {platform.LaunchUri}）：{candidate.FilePath}");
                     continue;
                 }
 
@@ -1020,7 +1047,13 @@ public sealed class MainViewModel : ObservableObject
 
                 _library.Add(entry);
                 added++;
+
+                Logger.Info($"  新增：{entry.Name} | {entry.ExecutablePath}"
+                            + $" | 来源 {entry.Source}"
+                            + $" | 封面 {(string.IsNullOrWhiteSpace(entry.CoverPath) ? "未命中（用首字母封面）" : Path.GetFileName(entry.CoverPath))}");
             }
+
+            Logger.Info($"扫描结束：新增 {added} 个，跳过 {skipped} 个");
 
             if (added > 0)
             {

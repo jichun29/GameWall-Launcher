@@ -263,6 +263,15 @@
 
                     <Border Style="{StaticResource Accent.Divider}" Margin="0,26,0,22" />
 
+                    <!-- ══════ 封面 ══════ -->
+                    <TextBlock Text="封面" Style="{StaticResource Text.Title}" FontSize="15" Margin="0,0,0,10" />
+                    <CheckBox x:Name="DownloadCoverBox" Content="本地找不到封面时，联网下载官方封面"
+                              Margin="0,0,0,10" />
+                    <TextBlock Style="{StaticResource Text.Dim}" FontSize="11.5" TextWrapping="Wrap"
+                               Text="Steam 只在你打开过商店页之后才把封面缓存到本地，所以新装的游戏经常没有封面。&#10;打开这一项后，程序会用 appid 去 Steam 的图片 CDN 取官方竖版封面并保存到本地，只下载图片、不上传任何数据。&#10;关掉之后完全离线，没有缓存的游戏会显示首字母封面。" />
+
+                    <Border Style="{StaticResource Accent.Divider}" Margin="0,26,0,22" />
+
                     <!-- ══════ 数据与关于 ══════ -->
                     <TextBlock Text="数据与关于" Style="{StaticResource Text.Title}" FontSize="15" Margin="0,0,0,10" />
                     <TextBlock x:Name="DataPathText" Style="{StaticResource Text.Subtitle}"

@@ -91,6 +91,7 @@ public partial class SettingsWindow : Window
 
         // 更新区：源下拉 + 自动检查开关 + 状态文案
         AutoCheckUpdateBox.IsChecked = _working.AutoCheckUpdate;
+        DownloadCoverBox.IsChecked = _working.DownloadCoverFromWeb;
 
         UpdateSourceBox.Items.Clear();
         var selectedIndex = 0;
@@ -642,6 +643,10 @@ public partial class SettingsWindow : Window
         _working.ShowLabels = ShowLabelsBox.IsChecked == true;
         _working.EnableCardAnimations = CardAnimationsBox.IsChecked == true;
         _working.AutoCheckUpdate = AutoCheckUpdateBox.IsChecked == true;
+        _working.DownloadCoverFromWeb = DownloadCoverBox.IsChecked == true;
+
+        // 立刻生效，不用等重启：下一张没封面的卡片就能按新开关决定要不要联网
+        CoverArtService.OnlineEnabled = _working.DownloadCoverFromWeb;
 
         // 下拉项的 Tag 才是真正的源 key，Content 只是给人看的显示名
         if (UpdateSourceBox.SelectedItem is ComboBoxItem { Tag: string sourceKey }
@@ -683,6 +688,7 @@ public partial class SettingsWindow : Window
         to.MinimizeOnGameLaunch = from.MinimizeOnGameLaunch;
         to.EnableCardAnimations = from.EnableCardAnimations;
         to.AutoCheckUpdate = from.AutoCheckUpdate;
+        to.DownloadCoverFromWeb = from.DownloadCoverFromWeb;
         to.UpdateSource = from.UpdateSource;
         to.AskTidyAfterImport = from.AskTidyAfterImport;
         to.ShowTidyHint = from.ShowTidyHint;

@@ -259,17 +259,24 @@ namespace GameWall.Services
         {
             string? best = null;
 
-            foreach (var text in EnumerateStrings(data, start, size))
+            foreach (var raw in EnumerateStrings(data, start, size))
             {
-                if (!LooksLikeGameTitle(text))
+                if (!LooksLikeGameTitle(raw))
                 {
                     continue;
                 }
 
-                if (!ContainsChinese(text))
+                if (!ContainsChinese(raw))
                 {
                     continue;
                 }
+
+                // Steam 有一部分游戏把「中文名 / 英文名」整串塞在同一个字段里，
+                // 例如 Human Fall Flat 的官方中文名实际是
+                //     "人类一败涂地 / Human Fall Flat"
+                // 直接拿来当卡片标题，墙上会出现一条中英混杂的长名字。
+                // 这里只保留斜杠前面的中文部分。
+                var text = TrimToChinesePart(raw);
 
                 // 含简体专用字 / 常用简体字的优先
                 if (LooksSimplified(text))
@@ -281,6 +288,50 @@ namespace GameWall.Services
             }
 
             return best;
+        }
+
+        /// <summary>
+        /// 把一个「中文名 / English Name」的中英并列标题切到只剩中文那一段。
+        ///
+        /// 老版本的库里已经存了不少这种名字（`人类一败涂地 / Human Fall Flat`），
+        /// 只在解析 appinfo.vdf 时切是不够的 —— 已经落盘的条目不会重新解析，
+        /// 所以把这个切分暴露出来，让启动时的名字回填流程也能用同一套规则。
+        /// 不是中英并列的标题会原样返回。
+        /// </summary>
+        public static string TrimMixedName(string? name)
+        {
+            return string.IsNullOrWhiteSpace(name) ? string.Empty : TrimToChinesePart(name);
+        }
+
+        /// <summary>
+        /// 把「人类一败涂地 / Human Fall Flat」「双人成行 - It Takes Two」这类
+        /// 中英并列的名字切到只剩中文那一段。
+        ///
+        /// 只在「斜杠/破折号前面确实有中文、后面基本是英文」时才切，
+        /// 免得把《半条命 2 / Half-Life 2》这种本来就该保留的形式也砍掉一半
+        /// —— 不过这种名字切完正好是我们要的中文标题，所以切是安全的。
+        /// </summary>
+        private static string TrimToChinesePart(string text)
+        {
+            foreach (var separator in new[] { " / ", "/", " - ", " — ", " | " })
+            {
+                var index = text.IndexOf(separator, StringComparison.Ordinal);
+                if (index <= 0)
+                {
+                    continue;
+                }
+
+                var head = text.Substring(0, index).Trim();
+                var tail = text.Substring(index + separator.Length).Trim();
+
+                // 前半段要有中文，后半段要基本没有中文（否则可能是「A / B」两个中文名）
+                if (head.Length >= 2 && ContainsChinese(head) && !ContainsChinese(tail))
+                {
+                    return head;
+                }
+            }
+
+            return text.Trim();
         }
 
         private static string? ExtractEnglishName(byte[] data, int start, int size)

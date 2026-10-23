@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GameWall.Services;
 
@@ -21,6 +24,14 @@ namespace GameWall.Services;
 /// </summary>
 public static class CoverArtService
 {
+    /// <summary>
+    /// 是否允许联网补封面（settings.json 的 <c>DownloadCoverFromWeb</c>，默认开）。
+    /// 启动时由 <see cref="SettingsService.Load"/> 写入，界面上改完设置会立即刷新。
+    ///
+    /// 关掉之后行为回到「纯本地」：只认 Steam 自己缓存下来的图，没缓存就显示占位封面。
+    /// </summary>
+    public static bool OnlineEnabled { get; set; } = true;
+
     /// <summary>按优先级排列的候选文件名（越靠前越适合做卡片封面）。</summary>
     private static readonly string[] CandidateNames =
     {
@@ -54,6 +65,9 @@ public static class CoverArtService
     /// <summary>
     /// 尝试给一个 Steam 游戏补上封面，成功返回本地封面路径（已复制进数据目录）。
     /// 找不到就返回 null，调用方继续用占位图。
+    ///
+    /// 两级来源：先吃 Steam 自己的本地缓存（快、完全离线）；
+    /// 缓存里没有就用 appid 去 Steam 的图片 CDN 取官方竖版封面（见 <see cref="TryDownloadSteamCover"/>）。
     /// </summary>
     public static string? TryFetchSteamCover(string? launchUri, string gameId)
     {
@@ -65,29 +79,163 @@ public static class CoverArtService
                 return null;
             }
 
-            var source = FindSteamCoverFile(appId);
-            if (string.IsNullOrEmpty(source))
-            {
-                Logger.Info($"Steam 缓存里没有 {appId} 的封面，改用占位图");
-                return null;
-            }
-
-            AppPaths.EnsureCreated();
-            var ext = Path.GetExtension(source);
-            if (string.IsNullOrWhiteSpace(ext))
-            {
-                ext = ".jpg";
-            }
-
-            var dest = Path.Combine(AppPaths.Covers, $"{gameId}{ext}");
-            File.Copy(source, dest, overwrite: true);
-            Logger.Info($"已取到 Steam 封面：{appId} → {Path.GetFileName(source)}");
-            return dest;
+            return TryFetchSteamCoverByAppId(appId, gameId);
         }
         catch (Exception ex)
         {
             Logger.Error($"取 Steam 封面失败: {launchUri}", ex);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// 按 appid 取封面：本地缓存优先，缓存没命中再联网。
+    ///
+    /// 之所以要联网兜底：用户的机器上经常只装了游戏本体，
+    /// <c>appcache\librarycache</c> 里压根没有这个 appid 的目录
+    /// （Steam 只在你打开过商店页 / 库页面之后才缓存）。这时候卡片就只能显示占位图了。
+    /// </summary>
+    public static string? TryFetchSteamCoverByAppId(string appId, string gameId)
+    {
+        if (string.IsNullOrWhiteSpace(appId))
+        {
+            return null;
+        }
+
+        var source = FindSteamCoverFile(appId);
+        if (!string.IsNullOrEmpty(source))
+        {
+            return SaveCover(source, gameId, $"已取到 Steam 封面：{appId} → {Path.GetFileName(source)}");
+        }
+
+        // 本地缓存没有 → 联网取
+        var downloaded = TryDownloadSteamCover(appId, gameId);
+        if (!string.IsNullOrEmpty(downloaded))
+        {
+            return downloaded;
+        }
+
+        Logger.Info($"Steam 缓存与 CDN 都没有 {appId} 的封面，改用占位图");
+        return null;
+    }
+
+    private static string? SaveCover(string sourcePath, string gameId, string logMessage)
+    {
+        AppPaths.EnsureCreated();
+        var ext = Path.GetExtension(sourcePath);
+        if (string.IsNullOrWhiteSpace(ext))
+        {
+            ext = ".jpg";
+        }
+
+        var dest = Path.Combine(AppPaths.Covers, $"{IconService.Sanitize(gameId)}{ext}");
+        File.Copy(sourcePath, dest, overwrite: true);
+        Logger.Info(logMessage);
+        return dest;
+    }
+
+    /// <summary>
+    /// 直连 Steam 的图片 CDN 取官方封面。
+    ///
+    /// 这是整个程序里**唯一**会主动联网的地方，只在「本地缓存找不到封面」时才触发，
+    /// 而且只请求图片、不上传任何东西。设置里的「下载游戏封面」开关可以关掉它。
+    ///
+    /// 实测这几条 CDN 在国内都还算通（cloudflare / akamai / steamstatic 三条互为备份）。
+    /// </summary>
+    private static string? TryDownloadSteamCover(string appId, string gameId)
+    {
+        if (!OnlineEnabled)
+        {
+            return null;
+        }
+
+        AppPaths.EnsureCreated();
+        var dest = Path.Combine(AppPaths.Covers, $"{IconService.Sanitize(gameId)}.jpg");
+
+        foreach (var host in CdnHosts)
+        {
+            foreach (var name in DownloadCandidateNames)
+            {
+                var url = $"{host}/steam/apps/{appId}/{name}";
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                    var bytes = GetHttpClient()
+                        .GetByteArrayAsync(url, cts.Token)
+                        .GetAwaiter()
+                        .GetResult();
+
+                    if (bytes is null || bytes.Length < 1024)
+                    {
+                        continue;
+                    }
+
+                    File.WriteAllBytes(dest, bytes);
+                    Logger.Info($"已从 Steam CDN 下载封面：{appId} → {name}（{bytes.Length / 1024} KB）");
+                    return dest;
+                }
+                catch (OperationCanceledException)
+                {
+                    // 超时就换下一个源，不刷日志（一次扫描几十个游戏会刷屏）
+                }
+                catch (Exception ex)
+                {
+                    Logger.Info($"从 CDN 取封面失败（{name}）：{ex.GetType().Name} {ex.Message}");
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Steam 图片 CDN，按实测速度排序，互为备份。</summary>
+    private static readonly string[] CdnHosts =
+    {
+        "https://cdn.cloudflare.steamstatic.com",
+        "https://cdn.akamai.steamstatic.com",
+        "https://cdn.steamstatic.com",
+    };
+
+    /// <summary>
+    /// CDN 上要试的文件名。和本地缓存那套不完全一样：
+    /// 网络请求每次都几十毫秒，只试真正像封面的三档，不试 header / hero 这种横图。
+    /// </summary>
+    private static readonly string[] DownloadCandidateNames =
+    {
+        "library_600x900_2x.jpg",
+        "library_600x900.jpg",
+        "library_capsule.jpg",
+        "header.jpg",
+    };
+
+    private static HttpClient? _httpClient;
+    private static readonly object HttpClientGate = new();
+
+    /// <summary>共用一个 HttpClient：每次 new 会耗尽 socket，这是 .NET 上的老坑了。</summary>
+    private static HttpClient GetHttpClient()
+    {
+        lock (HttpClientGate)
+        {
+            if (_httpClient is not null)
+            {
+                return _httpClient;
+            }
+
+            var handler = new SocketsHttpHandler
+            {
+                AllowAutoRedirect = true,
+                AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
+                ConnectTimeout = TimeSpan.FromSeconds(8),
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            };
+
+            _httpClient = new HttpClient(handler)
+            {
+                Timeout = TimeSpan.FromSeconds(20),
+            };
+
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("GameWall/" + AppInfo.Version);
+            return _httpClient;
         }
     }
 
