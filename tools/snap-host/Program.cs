@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Threading;
 using System.Windows;
@@ -51,7 +51,7 @@ namespace SnapHost
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine("scene FAILED " + parts[0] + ": " + ex.Message);
+                    Console.Error.WriteLine("scene FAILED " + parts[0] + ": " + ex);
                 }
             }
 
@@ -62,7 +62,7 @@ namespace SnapHost
         {
             var kind = parts.Length > 1 ? parts[1] : "main";
 
-            if (kind == "settings" || kind == "tidy" || kind == "toolbox" || kind == "about")
+            if (kind == "settings" || kind == "tidy" || kind == "toolbox" || kind == "about" || kind == "log")
             {
                 CaptureDialog(parts, path);
                 return;
@@ -96,6 +96,14 @@ namespace SnapHost
                 : GameWall.Models.WallViewMode.Card;
             vm.ReloadCards();
             vm.NotifySettingsChanged();
+
+            // name:main:Dark:Card:select —— 选中态截图用。
+            // 用来看「选中描边和封面的圆角对不对得上」，纯目视截图里很难判断。
+            if (parts.Length > 4 && parts[4] == "select" && vm.Cards.Count > 0)
+            {
+                vm.SelectedCard = vm.Cards[0];
+            }
+
             Pump(win.Dispatcher, 6);
 
             Console.WriteLine("  view=" + vm.ViewMode + " cards=" + vm.Cards.Count + " theme=" + vm.Settings.Theme);
@@ -140,6 +148,13 @@ namespace SnapHost
                         SelectNav(toolbox, nav);
                         Pump(toolbox.Dispatcher, 5);
                     }
+                    break;
+                case "log":
+                    // 日志窗口读的是 Logger 的内存缓冲，宿主进程里是空的，
+                    // 先灌几条有代表性的记录，截图才看得出排版和等级配色。
+                    SeedLog();
+                    var logWin = new GameWall.Views.Dialogs.LogWindow();
+                    width = 980; height = 700; dialog = logWin;
                     break;
                 default:
                     var about = new GameWall.Views.Dialogs.AboutWindow();
@@ -217,6 +232,24 @@ namespace SnapHost
                     return;
                 }
             }
+        }
+
+        /// <summary>
+        /// 给日志窗口截图灌一批样例记录。
+        /// 只影响截图宿主进程的内存缓冲，不写文件、不影响真实日志。
+        /// </summary>
+        private static void SeedLog()
+        {
+            GameWall.Services.Logger.Info("主题已应用：Dark → Dark");
+            GameWall.Services.Logger.Info("Steam 官方中文名库已载入 59 条（d:\\program files (x86)\\steam\\appcache\\appinfo.vdf）");
+            GameWall.Services.Logger.Info("开始扫描：5 个根目录，最小体积 40 KB");
+            GameWall.Services.Logger.Info("封面匹配（游戏目录自带图片）：赛博朋克2077 → cover.png");
+            GameWall.Services.Logger.Info("扫描完成：新增 3 个游戏，跳过 14 个已存在的");
+            GameWall.Services.Logger.Warn("Steam 缓存里没有 646910 的封面，改用占位图");
+            GameWall.Services.Logger.Info("启动游戏：赛博朋克2077（Cyberpunk2077.exe）");
+            GameWall.Services.Logger.Info("检查更新成功（GitHub 直连）：远端 v1.0.17 / 本地 v1.0.16 / hasUpdate=True");
+            GameWall.Services.Logger.Error("提取图标失败：访问被拒绝", new UnauthorizedAccessException("对路径“E:\\WeGameApps\\英雄联盟（含经典模式）\\Game”的访问被拒绝。"));
+            GameWall.Services.Logger.Info("已收纳 2 个桌面快捷方式 → desktop-backup\\20261023-171245");
         }
 
         private static void Prepare(Window win, int width, int height)

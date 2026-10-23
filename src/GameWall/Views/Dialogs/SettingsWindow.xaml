@@ -269,6 +269,8 @@
                                TextWrapping="Wrap" Margin="0,0,0,14" />
                     <StackPanel Orientation="Horizontal">
                         <Button Content="打开数据目录" Click="OpenDataDir_Click" Margin="0,0,10,0" />
+                        <Button Content="运行日志" Click="OpenLog_Click" Margin="0,0,10,0"
+                                ToolTip="扫描、启动、更新的记录，可以复制或导出成文本发给开发者" />
                         <Button Content="关于 GameWall" Click="OpenAbout_Click" Margin="0,0,10,0" />
                         <Button Content="恢复默认设置" Click="ResetAll_Click" />
                     </StackPanel>

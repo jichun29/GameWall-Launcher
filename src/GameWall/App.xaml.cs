@@ -22,6 +22,9 @@ public partial class App : System.Windows.Application
     private const string ActivateSignalName = @"Global\GameWall.Activate";
 
     private Mutex? _singleInstanceMutex;
+
+    /// <summary>当前进程是否真的拿到了单实例互斥量的所有权（只有拿到了才能 Release）。</summary>
+    private bool _ownsMutex;
     private EventWaitHandle? _activateSignal;
     private RegisteredWaitHandle? _activateWait;
     private System.Windows.Forms.NotifyIcon? _trayIcon;
@@ -36,6 +39,7 @@ public partial class App : System.Windows.Application
     {
         // 单实例：命名互斥量。已存在则唤醒旧实例并退出。
         _singleInstanceMutex = new Mutex(true, @"Global\GameWall.SingleInstance", out var createdNew);
+        _ownsMutex = createdNew;
         if (!createdNew)
         {
             // 通知已经在跑的那个实例把窗口抬到前台，然后自己退出。
@@ -148,6 +152,11 @@ public partial class App : System.Windows.Application
                 RestoreMainWindow();
                 _mainWindow?.ViewModel.SettingsCommand.Execute(null);
             });
+            menu.Items.Add("运行日志…", null, (_, _) =>
+            {
+                RestoreMainWindow();
+                _mainWindow?.ViewModel.LogCommand.Execute(null);
+            });
             menu.Items.Add("检查更新…", null, (_, _) =>
             {
                 RestoreMainWindow();
@@ -218,7 +227,35 @@ public partial class App : System.Windows.Application
         _mainWindow.Topmost = true;
         _mainWindow.Topmost = _mainWindow.ViewModel.Settings.Topmost;
 
-        _trayIcon?.ShowBalloonTip(0);
+        // 收起托盘气泡。注意 ShowBalloonTip 在文本为空时会抛
+        // 「Balloon tip text must have a non-empty value.」，
+        // 所以先兜一个占位文本再收，别让恢复窗口这条最常用的路径抛异常。
+        HideTrayBalloon();
+    }
+
+    /// <summary>
+    /// 收起托盘气泡。
+    ///
+    /// WinForms 的 NotifyIcon.ShowBalloonTip 要求 BalloonTipText 非空，
+    /// 否则抛 InvalidOperationException（「Balloon tip text must have a non-empty value.」）。
+    /// 有气泡时传 0 收掉；本来就没什么可收的，直接什么都不做 ——
+    /// 千万不要为了「绕过」这个校验去塞一段假文本，那会让托盘莫名冒出一个「GameWall」气泡。
+    /// </summary>
+    private void HideTrayBalloon()
+    {
+        if (_trayIcon is null || string.IsNullOrWhiteSpace(_trayIcon.BalloonTipText))
+        {
+            return;
+        }
+
+        try
+        {
+            _trayIcon.ShowBalloonTip(0);
+        }
+        catch (Exception ex)
+        {
+            Logger.Info("收起托盘气泡失败：" + ex.Message);
+        }
     }
 
     public void ExitApp()
@@ -281,9 +318,30 @@ public partial class App : System.Windows.Application
             _trayIcon = null;
         }
 
-        _singleInstanceMutex?.ReleaseMutex();
-        _singleInstanceMutex?.Dispose();
-        _singleInstanceMutex = null;
+        // Mutex 只能在「自己拿到的那个线程」上 Release，且拿不到所有权时会抛
+        // ApplicationException（Object synchronization method was called from an
+        // unsynchronized block of code）。
+        // 第二个实例走的就是「没拿到所有权 + 照样退出」这条路，
+        // 所以这里必须先判所有权再放，并整体兜住异常。
+        if (_singleInstanceMutex is not null)
+        {
+            try
+            {
+                if (_ownsMutex)
+                {
+                    _singleInstanceMutex.ReleaseMutex();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Info("释放单实例互斥量失败：" + ex.Message);
+            }
+            finally
+            {
+                _singleInstanceMutex.Dispose();
+                _singleInstanceMutex = null;
+            }
+        }
 
         _activateWait?.Unregister(null);
         _activateWait = null;

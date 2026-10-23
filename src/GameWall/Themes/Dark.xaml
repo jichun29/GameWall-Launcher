@@ -98,6 +98,11 @@
     <SolidColorBrush x:Key="Brush.Success" Color="#3DE8A0" />
     <SolidColorBrush x:Key="Brush.Warning" Color="#FFC24B" />
 
+    <!-- 语义色的淡底：胶囊、状态条用，别直接拿主色当背景（太刺眼） -->
+    <SolidColorBrush x:Key="Brush.DangerSoft" Color="#33FF6B81" />
+    <SolidColorBrush x:Key="Brush.SuccessSoft" Color="#333DE8A0" />
+    <SolidColorBrush x:Key="Brush.WarningSoft" Color="#33FFC24B" />
+
     <!-- ═════════ 覆盖层 ═════════ -->
 
     <SolidColorBrush x:Key="Brush.Scrim" Color="#D9060810" />

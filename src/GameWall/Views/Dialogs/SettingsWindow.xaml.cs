@@ -594,6 +594,34 @@ public partial class SettingsWindow : Window
 
     private void OpenAbout_Click(object sender, RoutedEventArgs e) => OpenAboutWindow(null);
 
+    /// <summary>打开运行日志；已经开着就拉到前面，不重复开窗。</summary>
+    private void OpenLog_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            foreach (Window win in Application.Current.Windows)
+            {
+                if (win is LogWindow existing)
+                {
+                    if (existing.WindowState == WindowState.Minimized)
+                    {
+                        existing.WindowState = WindowState.Normal;
+                    }
+
+                    existing.Activate();
+                    return;
+                }
+            }
+
+            var log = new LogWindow { Owner = this };
+            log.Show();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("打开运行日志失败", ex);
+        }
+    }
+
     /// <summary>打开关于窗口；带了检查结果就直接显示，省一次请求。</summary>
     private void OpenAboutWindow(UpdateCheckResult? known)
     {

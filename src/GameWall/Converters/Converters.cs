@@ -127,9 +127,67 @@ public sealed class EnumEqualsConverter : IValueConverter
 /// <summary>收藏状态 → 右键菜单文案。</summary>
 public sealed class FavoriteMenuTextConverter : IValueConverter
 {
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         => value is bool on && on ? "取消收藏" : "加入收藏";
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// 宽 + 高 + 圆角半径 → 圆角矩形 Clip。
+///
+/// 为什么需要它：WPF 的 <c>Border.CornerRadius</c> **只影响自己那条描边**，
+/// 不会把子元素裁成圆角（<c>ClipToBounds</c> 裁的是矩形）。
+/// 于是封面图 / 渐变矩形这些方形内容会把四个角的圆弧整片盖掉，
+/// 平时描边颜色和背景接近看不出来，一旦「选中」变成 2px 电光青，
+/// 就只剩四条直边、四个角是空的 —— 看起来像直角边框，很突兀。
+///
+/// 把它挂到 Border 里那层内容容器的 Clip 上，圆弧才会真的露出来。
+/// 用法（MultiBinding，第三个值是圆角半径）：
+///   &lt;Grid.Clip&gt;&lt;MultiBinding Converter="{StaticResource RoundedClip}"&gt;
+///     &lt;Binding Path="ActualWidth" RelativeSource="{RelativeSource Self}" /&gt;
+///     &lt;Binding Path="ActualHeight" RelativeSource="{RelativeSource Self}" /&gt;
+///     &lt;Binding Source="14" /&gt;
+///   &lt;/MultiBinding&gt;&lt;/Grid.Clip&gt;
+/// </summary>
+public sealed class RoundedClipConverter : IMultiValueConverter
+{
+    public object? Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (values.Length < 2
+            || values[0] is not double width || values[1] is not double height
+            || double.IsNaN(width) || double.IsNaN(height) || width <= 0 || height <= 0)
+        {
+            // 尺寸还没算出来：给一个空裁剪，避免画出半张图
+            return new RectangleGeometry(Rect.Empty);
+        }
+
+        var radius = 14.0;
+        if (values.Length > 2 && values[2] is not null)
+        {
+            if (values[2] is double d)
+            {
+                radius = d;
+            }
+            else if (double.TryParse(values[2].ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+            {
+                radius = parsed;
+            }
+        }
+
+        // 半径不能超过短边的一半，否则 RectangleGeometry 会退化成奇怪的形状
+        var limit = Math.Min(width, height) / 2.0;
+        if (radius > limit)
+        {
+            radius = limit;
+        }
+
+        var geometry = new RectangleGeometry(new Rect(0, 0, width, height), radius, radius);
+        geometry.Freeze();
+        return geometry;
+    }
+
+    public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GameWall.Models;
@@ -67,6 +68,14 @@ public sealed class GameScanner
         // 腾讯 WeGame 把运行库、WebView2、DirectX 等公共组件全塞在这里，
         // 里面一个游戏都没有（Deploy-Application.exe / vcredist_x64.exe 之类）
         "common_apps", "rail_apps", "rail_user_data", "toolkit",
+        // 破解组织 / 补丁 / 汉化包目录：里面是补丁程序，不是游戏本体。
+        // 下载站的散装游戏几乎都会带一个这样的目录，进去只会扫出一堆 loader。
+        "codex", "plaza", "skidrow", "reloaded", "prophet", "steampunks",
+        "elamigos", "fitgirl", "dodi", "rune", "tenoke", "goldberg",
+        "empress", "flt", "razor1911", "hoodlum", "crack", "cracked",
+        "crackfix", "patch", "patches", "no-dvd", "nodvd", "keygen",
+        "trainer", "trainers", "cheats", "cheat", "修改器", "汉化",
+        "汉化补丁", "破解补丁", "免cd补丁", "补丁",
     };
 
     /// <summary>
@@ -115,6 +124,11 @@ public sealed class GameScanner
         "config", "settings", "options", "editor", "tool", "benchmark",
         // 部署 / 打包脚本（WeGame 的公共组件目录里一抓一把）
         "deploy",
+        // 破解补丁 / 汉化补丁 / 修改器 / 存档工具
+        // 下载站把游戏本体和这些塞在同一个目录里，补丁 exe 常被误当成主程序
+        "crack", "crackfix", "keygen", "patcher", "trainer", "cheat", "cheatengine",
+        "破解", "汉化补丁", "汉化", "修改器", "免CD", "免cd", "存档修改", "补丁",
+        "greenfix", "regfix", "注册表修复",
     };
 
     /// <summary>
@@ -149,6 +163,12 @@ public sealed class GameScanner
                              "Games", "Game", "SteamLibrary", "游戏", "单机游戏",
                              // 国内平台常把游戏直接装到盘符根下
                              "WeGameApps", "WeGame", "Tencent Games", "GOG Games",
+                             // Epic 装在非系统盘时也是 <盘符>\Epic Games\<游戏名>
+                             "Epic Games", "EpicGames",
+                             // 下载站/破解版最常见的几个落点：很多人直接把解压出来的
+                             // 游戏丢在 D:\游戏库、D:\PC游戏、D:\Downloads\Games 下面
+                             "游戏库", "PC游戏", "电脑游戏", "我的游戏", "游戏下载",
+                             "Downloads\\Games", "Downloads\\游戏", "Gamer", "Gaming",
                          })
                 {
                     var candidate = Path.Combine(root, name);
@@ -511,6 +531,21 @@ public sealed class GameScanner
         var rootName = Path.GetFileName(rootFull);
 
         if (IsStoreManagedGameRoot(gameRoot))
+        {
+            return (rootName, rootFull);
+        }
+
+        // 只要路径中间出现过「客户端 / 启动器 / 工具」这一层，这个 exe 就是某个游戏的组件，
+        // 身份必须归到游戏根目录。
+        //
+        // 这一条是《英雄联盟》踩出来的：往上找「第一个不是通用容器名的目录」时，
+        //   LeagueClient\FeedBack\FeedBack.exe      → 认成 FeedBack（墙上多一张 FE 卡）
+        //   Launcher\qbblinktrial\browser.exe       → 认成 qbblinktrial（QB）
+        //   Cross\icreate\cut\cut-cli.exe           → 认成 cut（CC）
+        //   Cross\icreate\recorder-release\...      → 认成 recorder-release（RR）
+        // 这些目录自己不在黑名单里，但它们的**父级**（leagueclient / launcher / cross）
+        // 全在，所以真正说明问题的是祖先而不是直接父目录。
+        if (HasClientSegment(exeDir, gameRoot))
         {
             return (rootName, rootFull);
         }
@@ -885,28 +920,149 @@ public sealed class GameScanner
     /// </summary>
     private static string ChooseName(string exeBaseName, string folderName)
     {
-        if (string.IsNullOrWhiteSpace(folderName)
-            || RedundantFolderNames.Contains(folderName.ToLowerInvariant()))
+        // 目录名先洗一遍：下载站目录常带「免安装绿色版 v1.10 全DLC」这类尾巴，
+        // 直接拿来当游戏名既不好看也匹配不到封面。
+        var folder = CleanFolderName(folderName);
+
+        if (string.IsNullOrWhiteSpace(folder)
+            || RedundantFolderNames.Contains(folder.ToLowerInvariant()))
         {
             return exeBaseName;
         }
 
         // 两者只差大小写时用目录名 —— 玩家建目录时一般保留了官方写法
         // （"Sekiro" 而不是 sekiro.exe 里的 sekiro），显示出来更像游戏名。
-        if (folderName.Equals(exeBaseName, StringComparison.OrdinalIgnoreCase))
+        if (folder.Equals(exeBaseName, StringComparison.OrdinalIgnoreCase))
         {
-            return folderName;
+            return folder;
         }
 
         // exe 名带版本号/后缀（如 Game-Win64-Shipping）时优先目录名
         var exeLower = exeBaseName.ToLowerInvariant();
         if (exeLower.Contains("-win64") || exeLower.Contains("-win32") || exeLower.Contains("shipping"))
         {
-            return folderName;
+            return folder;
         }
 
-        return exeBaseName.Length >= folderName.Length ? exeBaseName : folderName;
+        // exe 名只是 launcher / start / play / game 这类无信息量的词时，用目录名
+        if (VagueExeNames.Contains(exeLower))
+        {
+            return folder;
+        }
+
+        // 目录名带中文、exe 名是纯英文时优先目录名。
+        // 下载站习惯把目录写成中文名、exe 保留英文（「赛博朋克2077」目录里是
+        // Cyberpunk2077.exe）。中文用户看中文名更认得出，去 Steam 库/封面库
+        // 模糊匹配时中文名也更准。
+        if (HasChineseChar(folder) && !HasChineseChar(exeBaseName))
+        {
+            return folder;
+        }
+
+        return exeBaseName.Length >= folder.Length ? exeBaseName : folder;
     }
+
+    /// <summary>是否含中日韩表意字符（用来判断「这个字符串是不是中文名」）。</summary>
+    private static bool HasChineseChar(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        foreach (var ch in text)
+        {
+            if (ch >= 0x4E00 && ch <= 0x9FFF)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// exe 名毫无信息量的情况：目录名才是游戏名。
+    /// 下载站/破解版里 launcher.exe、start.exe、game.exe 满地都是。
+    /// </summary>
+    private static readonly HashSet<string> VagueExeNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "game", "start", "play", "launcher", "run", "main", "app", "client",
+        "loader", "application", "setup", "begin", "starter", "go",
+    };
+
+    /// <summary>
+    /// 把「下载站风格」的目录名洗成像样的游戏名。
+    ///
+    /// 典型输入：
+    ///   【3DM 首发】艾尔登法环 v1.10 全DLC 免安装绿色版
+    ///   赛博朋克2077 [v2.21][全DLC][简体中文][免安装]
+    ///   Hades.v1.38281.Cracked-CODEX
+    /// 期望输出：
+    ///   艾尔登法环 / 赛博朋克2077 / Hades
+    ///
+    /// 做法保守：只剥「一定不是游戏名」的部分，括注、版本号、发行版修饰词。
+    /// 剥完不足两个字符就退回原名，宁可难看也不要丢名字。
+    /// </summary>
+    private static string CleanFolderName(string folderName)
+    {
+        if (string.IsNullOrWhiteSpace(folderName))
+        {
+            return string.Empty;
+        }
+
+        var text = folderName.Trim();
+
+        // 1) 去掉成对括注：[] 【】 () （） —— 站点前缀、语言、版本几乎都在里面
+        text = Regex.Replace(text, @"[\[【（(][^\]】）)]*[\]】）)]", " ");
+        // 去掉落单的右括号（"-CODEX]" 这类不配对写法）
+        text = text.Replace("]", " ").Replace("】", " ").Replace("）", " ").Replace(")", " ");
+
+        // 2) 去掉发行版修饰词。逐个替换成空格而不是直接删，
+        //    免得 "Hades免安装" 粘成 "Hades免安装"→"Hades" 之后又和后面的词连上。
+        foreach (var noise in ReleaseNameNoise)
+        {
+            text = Regex.Replace(text, Regex.Escape(noise), " ", RegexOptions.IgnoreCase);
+        }
+
+        // 3) 去掉版本号：v1.10 / v1.38281 / 1.0.3 / Version 2.1
+        text = Regex.Replace(text, @"\bversion\b", " ", RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, @"\bv?\d+(?:\.\d+){1,4}\b", " ");
+        // "Hades.v1.38281" 这种点号粘连版：上一条已处理，这里清理残留的点
+        text = Regex.Replace(text, @"\.(?=\s|$)", " ");
+
+        // 4) 去掉破解组名（独立成词时才删，避免把 "CODEX" 之外的正常词切坏）
+        foreach (var group in SceneGroupNames)
+        {
+            text = Regex.Replace(text, @"\b" + Regex.Escape(group) + @"\b", " ", RegexOptions.IgnoreCase);
+        }
+
+        // 5) 收尾：合并空白、去掉首尾的连字符/下划线/点/空格
+        text = Regex.Replace(text, @"\s+", " ");
+        text = text.Replace('_', ' ').Trim(' ', '-', '.', '·', '—');
+
+        // 洗完太短（比如整个名字都是修饰词）就退回原名，别把游戏名洗没了
+        return text.Length >= 2 ? text : folderName;
+    }
+
+    /// <summary>发行版修饰词：剥掉之后剩下的才是游戏名。</summary>
+    private static readonly string[] ReleaseNameNoise =
+    {
+        "免安装", "绿色版", "硬盘版", "中文版", "简体中文", "繁体中文", "官方中文",
+        "豪华版", "终极版", "决定版", "完整版", "正式版", "数字版", "标准版",
+        "全DLC", "全dlc", "含DLC", "整合版", "整合", "已汉化", "汉化版", "汉化",
+        "破解版", "未加密", "免CD", "免cd", "绿色", "解压即玩", "一键安装",
+        "repack", "cracked", "crack", "multi", "multilanguage", "eng", "cht", "chs",
+        "rip", "portable", "update", "all dlc", "goty",
+    };
+
+    /// <summary>常见破解/打包组名，出现在目录名里时是噪音。</summary>
+    private static readonly string[] SceneGroupNames =
+    {
+        "codex", "plaza", "skidrow", "reloaded", "prophet", "steampunks",
+        "elamigos", "fitgirl", "dodi", "rune", "tenoke", "empress", "flt",
+        "razor1911", "hoodlum", "goldberg", "cpy", "3dm", "游侠", "游民", "ali213",
+    };
 
     private static long Score(GameCandidate c)
     {

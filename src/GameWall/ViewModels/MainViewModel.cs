@@ -64,6 +64,7 @@ public sealed class MainViewModel : ObservableObject
         AboutCommand = new RelayCommand(_ => RequestAbout?.Invoke());
         TidyDesktopCommand = new RelayCommand(_ => RequestTidyDesktop?.Invoke(), _ => TotalCount > 0);
         ToolboxCommand = new RelayCommand(_ => RequestToolbox?.Invoke());
+        LogCommand = new RelayCommand(_ => RequestLog?.Invoke());
         CheckUpdateCommand = new AsyncRelayCommand(() => CheckUpdateAsync(interactive: true), () => !IsCheckingUpdate);
         SetViewModeCommand = new RelayCommand(p =>
         {
@@ -95,6 +96,9 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>请求打开「游戏工具箱」窗口</summary>
     public event Action? RequestToolbox;
+
+    /// <summary>请求打开「运行日志」窗口</summary>
+    public event Action? RequestLog;
 
     // ── 数据 ────────────────────────────────────────────────
     public ObservableCollection<GameCardViewModel> Cards { get; }
@@ -137,6 +141,9 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>「工具箱」：硬件信息 + 游戏优化 + 电源方案</summary>
     public RelayCommand ToolboxCommand { get; }
+
+    /// <summary>「运行日志」：扫描 / 启动 / 更新的记录，可复制或导出</summary>
+    public RelayCommand LogCommand { get; }
 
     // ── 筛选状态 ────────────────────────────────────────────
     public string SearchText
@@ -199,10 +206,39 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>卡片悬停动画开关（设置里可以关掉）</summary>
     public bool CardAnimationsEnabled => Settings.EnableCardAnimations;
 
+    /// <summary>
+    /// 当前选中的卡片。
+    ///
+    /// 注意：模板里的选中描边绑的是 <see cref="GameCardViewModel.IsSelected"/>，
+    /// 不是这个属性。下面 setter 里必须把新旧两张卡的 IsSelected 一起翻转，
+    /// 否则点了卡片只有「当前这张」在 VM 里变了、界面上一条描边都不会出现
+    /// （之前的选中效果等于完全没生效）。
+    /// </summary>
     public GameCardViewModel? SelectedCard
     {
         get => _selectedCard;
-        set => SetProperty(ref _selectedCard, value);
+        set
+        {
+            if (ReferenceEquals(_selectedCard, value))
+            {
+                return;
+            }
+
+            if (_selectedCard is { } previous)
+            {
+                previous.IsSelected = false;
+            }
+
+            if (!SetProperty(ref _selectedCard, value))
+            {
+                return;
+            }
+
+            if (value is not null)
+            {
+                value.IsSelected = true;
+            }
+        }
     }
 
     public bool IsBusy
@@ -540,6 +576,9 @@ public sealed class MainViewModel : ObservableObject
             entry.Name = Path.GetFileNameWithoutExtension(entry.ExecutablePath);
         }
 
+        // 名字能换成官方中文就换（Steam 库里带各语言名，纯离线）。
+        LocalizeName(entry);
+
         // 顺手去本地找一张真封面（游戏目录自带图 / steam_appid.txt / Steam 库名匹配）。
         // 这一步只读本地文件，不联网；找不到就继续用渐变 + 图标/首字的占位方案。
         TryAttachCover(entry);
@@ -597,6 +636,84 @@ public sealed class MainViewModel : ObservableObject
         };
 
         return AddGame(entry);
+    }
+
+    /// <summary>
+    /// 把英文名换成官方中文名（只在能找到的时候换）。
+    ///
+    /// 来源是 Steam 客户端本地的 appinfo.vdf，纯离线。两条路：
+    ///  1. 游戏是 Steam 协议启动的，直接按 appid 查；
+    ///  2. 其余情况按名字反查（要求归一化后完全相等，不会把 4 认成 3）。
+    ///
+    /// 已经有中文的名字不动 —— 玩家自己改过的名字要尊重。
+    /// </summary>
+    private static void LocalizeName(GameEntry entry)
+    {
+        if (string.IsNullOrWhiteSpace(entry.Name) || HasChinese(entry.Name))
+        {
+            return;
+        }
+
+        string? chinese = null;
+
+        var appId = CoverArtService.GetSteamAppId(entry.LaunchUri);
+        if (!string.IsNullOrWhiteSpace(appId))
+        {
+            chinese = SteamNameService.GetChineseName(appId);
+        }
+
+        chinese ??= SteamNameService.GetChineseNameByEnglish(entry.Name);
+
+        if (!string.IsNullOrWhiteSpace(chinese) && !chinese.Equals(entry.Name, StringComparison.Ordinal))
+        {
+            Logger.Info($"游戏名换成官方中文名：{entry.Name} → {chinese}");
+            entry.Name = chinese!;
+        }
+    }
+
+    /// <summary>
+    /// 把库里已有的条目也换成官方中文名。
+    ///
+    /// 加游戏时已经换过一次，但老版本加进来的条目名字早就落盘了，
+    /// 不重扫的话它们会一直显示英文。这里在启动后补一次，
+    /// 有改动才写盘，且只在首屏画完之后跑（读 appinfo.vdf 有几十毫秒的 IO）。
+    /// 返回改了几条。
+    /// </summary>
+    public int LocalizeLibraryNames()
+    {
+        var changed = 0;
+
+        foreach (var entry in _library.Games)
+        {
+            var before = entry.Name;
+            LocalizeName(entry);
+            if (!string.Equals(before, entry.Name, StringComparison.Ordinal))
+            {
+                changed++;
+            }
+        }
+
+        if (changed > 0)
+        {
+            _library.Save();
+            ReloadCards();
+            Logger.Info($"已把 {changed} 个游戏名换成官方中文名");
+        }
+
+        return changed;
+    }
+
+    private static bool HasChinese(string text)
+    {
+        foreach (var ch in text)
+        {
+            if (ch >= '\u4e00' && ch <= '\u9fff')
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -898,6 +1015,7 @@ public sealed class MainViewModel : ObservableObject
 
                 // 扫描出来的游戏也顺手把本地能找到的官方封面带上，
                 // 否则重扫一遍之后墙上会突然少几张封面
+                LocalizeName(entry);
                 TryAttachCover(entry);
 
                 _library.Add(entry);

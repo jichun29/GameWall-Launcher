@@ -37,6 +37,7 @@
         <conv:StringToVisibilityConverter x:Key="StringToVis" />
         <conv:HexToBrushConverter x:Key="HexToBrush" />
         <conv:FavoriteMenuTextConverter x:Key="FavoriteMenuText" />
+        <conv:RoundedClipConverter x:Key="RoundedClip" />
 
         <!-- ═══════════ 视图切换按钮 ═══════════ -->
 
@@ -157,6 +158,18 @@
                         </Border.Effect>
 
                         <Grid>
+                            <!-- 关键：Border.CornerRadius 只画自己那条描边，不裁子元素；
+                                 ClipToBounds 裁的是矩形。所以封面图、渐变遮罩这些方形内容
+                                 会把四个角的圆弧盖住 —— 平时看不出来，一旦选中描边变成
+                                 2px 电光青，就只剩四条直边，像直角边框。
+                                 这里按圆角把整层内容裁一遍，圆弧才真的露出来。 -->
+                            <Grid.Clip>
+                                <MultiBinding Converter="{StaticResource RoundedClip}">
+                                    <Binding Path="ActualWidth" RelativeSource="{RelativeSource Self}" />
+                                    <Binding Path="ActualHeight" RelativeSource="{RelativeSource Self}" />
+                                    <Binding Source="13" />
+                                </MultiBinding>
+                            </Grid.Clip>
                             <!-- 封面是 2:3 的竖版比例（高 = 宽 × 3/2），高度取 CardHeight
                                  而不是 CardWidth —— 正方形会把 Steam 那张 600×900 的封面
                                  上下裁掉一大截。这里必须用固定高度，不能用星号行：
@@ -702,6 +715,11 @@
                                 Height="{StaticResource Size.ControlHeight}" Padding="16,0"
                                 Margin="0,0,10,0"
                                 Command="{Binding AboutCommand}" />
+                        <Button Content="📋 日志" ToolTip="运行日志：扫描、启动、更新的记录，可复制或导出"
+                                Style="{StaticResource Button.Base}"
+                                Height="{StaticResource Size.ControlHeight}" Padding="16,0"
+                                Margin="0,0,10,0"
+                                Command="{Binding LogCommand}" />
                         <Button Content="⚙ 设置" ToolTip="设置" Style="{StaticResource Button.Base}"
                                 Height="{StaticResource Size.ControlHeight}" Padding="16,0"
                                 Command="{Binding SettingsCommand}" />

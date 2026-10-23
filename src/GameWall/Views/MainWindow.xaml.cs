@@ -55,6 +55,7 @@ public partial class MainWindow : Window
         _vm.RequestAbout += () => ShowAbout();
         _vm.RequestTidyDesktop += () => ShowTidyDesktop();
         _vm.RequestToolbox += () => ShowToolbox();
+        _vm.RequestLog += () => ShowLog();
 
         // 检查更新的结果统一交给主窗口处理：用户主动点的要弹窗，
         // 后台自动检查的只有在真发现新版本时才弹（顶栏提示条另外由绑定驱动）
@@ -101,6 +102,9 @@ public partial class MainWindow : Window
 
         // 数一遍桌面上还有多少快捷方式可以收纳（只读目录，很便宜，但要等首屏画完）
         _ = RefreshTidyHintAsync();
+
+        // 把库里遗留的英文名换成官方中文名（读 Steam 的 appinfo.vdf，放首屏之后）
+        _ = LocalizeNamesAsync();
     }
 
     // ══════════════ 更新 ══════════════
@@ -180,6 +184,23 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 启动后把库里已有的英文名换成官方中文名。
+    /// 读 Steam 的 appinfo.vdf（1.6MB）要几十毫秒，放在首屏之后跑。
+    /// </summary>
+    private async Task LocalizeNamesAsync()
+    {
+        try
+        {
+            await Task.Delay(600);
+            _vm.LocalizeLibraryNames();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("回填中文名失败", ex);
+        }
+    }
+
     private void ShowTidy_Click(object sender, RoutedEventArgs e) => ShowTidyDesktop();
 
     private void DismissTidy_Click(object sender, RoutedEventArgs e) => _vm.DismissTidyHint();
@@ -227,6 +248,38 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             Logger.Error("打开游戏工具箱失败", ex);
+        }
+    }
+
+    /// <summary>
+    /// 打开运行日志。用非模态 Show()：
+    /// 用户经常是一边看日志一边回去改设置 / 重扫，模态窗口会挡住主界面。
+    /// </summary>
+    private void ShowLog()
+    {
+        try
+        {
+            // 已经开着就把它拿到前面，别堆出一摞同样的窗口
+            foreach (Window win in Application.Current.Windows)
+            {
+                if (win is LogWindow existing)
+                {
+                    if (existing.WindowState == WindowState.Minimized)
+                    {
+                        existing.WindowState = WindowState.Normal;
+                    }
+
+                    existing.Activate();
+                    return;
+                }
+            }
+
+            var log = new LogWindow { Owner = this };
+            log.Show();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("打开运行日志失败", ex);
         }
     }
 

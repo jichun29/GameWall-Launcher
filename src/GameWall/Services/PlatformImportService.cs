@@ -89,16 +89,20 @@ public static class PlatformImportService
                             ? string.Empty
                             : Path.Combine(steamApps, "common", installDir);
 
+                        // Steam 清单里只有英文名；本地的 appinfo.vdf 里带着官方中文名，
+                        // 能查到就用中文，国内用户看着舒服（纯本地读取，不联网）。
+                        var displayName = SteamNameService.GetChineseName(appId) ?? name;
+
                         list.Add(new PlatformGame
                         {
                             Platform = "Steam",
-                            Name = name,
+                            Name = displayName,
                             AppId = appId,
                             Kind = LaunchKind.Steam,
                             LaunchUri = $"steam://rungameid/{appId}",
                             InstallDir = fullInstall,
                             ExecutablePath = FindMainExe(fullInstall, name),
-                            SuggestedName = name,
+                            SuggestedName = displayName,
                         });
                     }
                     catch (Exception ex)
