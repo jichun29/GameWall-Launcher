@@ -1,11 +1,5 @@
 # GameWall
 
-> A lightweight Windows game launcher with visual wall-style game management.
-
-把散落在桌面上的单机游戏快捷方式收进一面「封面墙」——像 Steam 大图模式，但更轻、更专注，只干一件事：**点开就玩**。
-
-纯本地工具，不联网、不上传任何数据，所有配置都存在 `%AppData%\GameWall\` 下。
-
 [![Release](https://img.shields.io/github/v/release/jichun29/GameWall-Launcher?label=release&color=3DDBFF)](https://github.com/jichun29/GameWall-Launcher/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/jichun29/GameWall-Launcher/total?label=downloads&color=3DDBFF)](https://github.com/jichun29/GameWall-Launcher/releases)
 [![Stars](https://img.shields.io/github/stars/jichun29/GameWall-Launcher?label=stars&color=FFB64D)](https://github.com/jichun29/GameWall-Launcher/stargazers)
@@ -13,7 +7,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-3DDBFF)
 ![.NET](https://img.shields.io/badge/.NET-8.0-FFB64D)
 
-**单文件绿色版** · 下下来双击就能用 · 不用装运行时 · 不用装游戏平台 · 不用联网
+Windows 游戏封面墙 · 单文件绿色版，双击即用，不联网
 
 ![卡片式视图](docs/screenshots/dark-card.png)
 
@@ -32,8 +26,6 @@
 - [检查更新](#检查更新)
 - [数据存储](#数据存储)
 - [从源码编译](#从源码编译)
-- [项目结构](#项目结构)
-- [开发路线](#开发路线)
 - [常见问题](#常见问题)
 - [关于作者](#关于作者)
 - [许可证](#许可证)
@@ -203,6 +195,7 @@ ICO 内含 10 个尺寸（16 / 20 / 24 / 32 / 40 / 48 / 64 / 96 / 128 / 256）�
 
 ```bash
 python tools/make-logo.py
+
 ```
 
 产物写入 `src/GameWall/Assets/`：`GameWall.ico`（exe / 托盘图标）、`logo-256.png`（顶栏品牌标识）、
@@ -401,6 +394,7 @@ GameWall/
 ├─ backgrounds/          # 自定义背景图副本
 ├─ desktop-backup/       # 「整理桌面」挪走的快捷方式（每批一个时间戳目录 + restore.json）
 └─ tweaks/               # 「游戏工具箱」改过的注册表项的原始值（applied.json，用于还原）
+
 ```
 
 `library.json` 单条记录长这样：
@@ -423,6 +417,7 @@ GameWall/
   "SortIndex": 1,
   "Source": "手动添加"
 }
+
 ```
 
 写入采用「临时文件 → 备份旧文件 → 原子替换」，断电或崩溃不会写坏存档；JSON 解析失败时会保留 `.corrupt-时间戳` 备份并回到默认值。
@@ -437,6 +432,7 @@ GameWall/
   "AccentColor": "",
   "BackgroundColor": ""
 }
+
 ```
 
 - `Theme` 取 `"Dark"` / `"Light"` / `"System"`，非法值一律按 `"Dark"` 处理
@@ -465,6 +461,7 @@ dotnet publish src/GameWall/GameWall.csproj -c Release -r win-x64 --self-contain
 
 # 发布单文件（框架依赖，约 380 KB，目标机需装 .NET 8 Desktop Runtime）
 dotnet publish src/GameWall/GameWall.csproj -c Release -r win-x64 --self-contained false -o dist
+
 ```
 
 > 用后者时记得到 `src/GameWall/GameWall.csproj` 把 `<SelfContained>` 改成 `false`，
@@ -475,134 +472,6 @@ dotnet publish src/GameWall/GameWall.csproj -c Release -r win-x64 --self-contain
 ### 用 Visual Studio
 
 打开 `GameWall.sln`，把 `GameWall` 设为启动项目，F5 即可。
-
----
-
-## 项目结构
-
-```
-GameWall/
-├─ GameWall.sln
-├─ src/GameWall/
-│  ├─ GameWall.csproj          # net8.0-windows / WPF / 单文件发布配置
-│  ├─ app.manifest            # PerMonitorV2 高 DPI + Win10/11 兼容标记
-│  ├─ App.xaml / App.xaml.cs  # 启动、单实例锁、托盘图标、全局异常兜底
-│  ├─ Models/
-│  │  ├─ GameEntry.cs         # 一条游戏记录
-│  │  ├─ AppSettings.cs       # 全部设置项 + 主题模式常量
-│  │  ├─ HardwareSnapshot.cs  # 硬件快照（CPU/GPU/内存/硬盘/显示器/主板/网卡）
-│  │  └─ TweakDefinition.cs   # 一条优化项（注册表操作 + 风险等级）/ 电源方案
-│  ├─ Services/
-│  │  ├─ JsonStore.cs         # 路径解析 + 原子化 JSON 读写
-│  │  ├─ LibraryService.cs    # 游戏列表的增删改排序
-│  │  ├─ SettingsService.cs   # 设置读写 + 非法值修正 + 旧版本迁移
-│  │  ├─ IconService.cs       # 用 IShellItemImageFactory 提取高清图标
-│  │  ├─ CoverFactory.cs      # 没有封面时按名字哈希算渐变画刷
-│  │  ├─ CoverArtService.cs   # 从 Steam 本地缓存里找官方竖版封面
-│  │  ├─ LaunchService.cs     # 按类型启动 exe / steam:// / epic / gog
-│  │  ├─ GameScanner.cs       # 递归扫描 + 噪声过滤 + 打分排序
-│  │  ├─ PlatformImportService.cs  # 读 Steam/Epic/GOG 已装列表
-│  │  ├─ ShortcutResolver.cs  # .lnk / .url 解析成 exe 或平台启动协议
-│  │  ├─ AutoStartService.cs  # 开机自启注册表操作
-│  │  ├─ SystemThemeWatcher.cs# 读注册表 + 监听系统深浅色切换
-│  │  ├─ ThemeManager.cs      # 主题与强调色热切换
-│  │  ├─ AppInfo.cs           # 作者 / 仓库地址 / 版本号等元信息
-│  │  ├─ UpdateService.cs     # 检查更新、多镜像下载、SHA256 校验、自替换重启
-│  │  ├─ DesktopShortcutService.cs  # 桌面快捷方式体检 / 收纳 / 还原
-│  │  ├─ HardwareService.cs   # 硬件信息采集（Win32 + 注册表，零第三方库）
-│  │  ├─ HardwareReportService.cs   # 硬件报告导出 TXT / JSON
-│  │  ├─ TweakCatalog.cs      # 43 项优化项的定义（六类分组）
-│  │  ├─ TweakService.cs      # 应用 / 还原优化项，改前先记旧值
-│  │  ├─ PowerPlanService.cs  # 电源方案枚举 / 切换 / 复制（powrprof 直调）
-│  │  └─ Logger.cs            # 简易滚动日志
-│  ├─ ViewModels/
-│  │  ├─ ObservableObject.cs  # INotifyPropertyChanged 基类
-│  │  ├─ RelayCommand.cs      # 同步 / 异步命令
-│  │  ├─ GameCardViewModel.cs # 单张卡片的展示状态
-│  │  ├─ GameToolboxViewModel.cs  # 工具箱：硬件分节 / 优化项筛选 / 预设 / 电源方案
-│  │  └─ MainViewModel.cs     # 主界面状态、筛选、命令
-│  ├─ Views/
-│  │  ├─ MainWindow.xaml(.cs)        # 主窗口：两种视图 + 拖拽 + 拖放/粘贴导入 + 更新/整理提示条
-│  │  ├─ FirstRunWindow.xaml(.cs)    # 首次运行引导
-│  │  └─ Dialogs/
-│  │     ├─ AboutWindow.xaml(.cs)    # 关于：作者信息 + 检查更新
-│  │     ├─ GameToolboxWindow.xaml(.cs) # 游戏工具箱：硬件一览 + 优化方案 + 电源方案
-│  │     ├─ TidyDesktopWindow.xaml(.cs) # 整理桌面：选择要挪走的快捷方式
-│  │     ├─ GameEditWindow.xaml(.cs) # 编辑游戏信息
-│  │     ├─ SearchAddWindow.xaml(.cs)# 搜索添加
-│  │     ├─ ImportWindow.xaml(.cs)   # 平台导入
-│  │     └─ SettingsWindow.xaml(.cs) # 设置
-│  ├─ Themes/
-│  │  ├─ Dark.xaml / Light.xaml      # 两套色板（同名键一一对应）
-│  │  └─ Controls.xaml               # 全部自绘控件样式
-│  ├─ Controls/
-│  │  └─ VirtualizingWrapPanel.cs    # 虚拟化换行面板（只生成视口内的卡片）
-│  ├─ Assets/
-│  │  ├─ GameWall.ico                # 应用图标（exe 图标 + 托盘图标共用，10 个尺寸）
-│  │  └─ logo-256.png / logo-1024.png # 界面里的品牌标识
-│  └─ Converters/
-│     ├─ Converters.cs               # 路径→图片、布尔→可见性等
-│     └─ ImageCache.cs               # 解码后的图片缓存（带 DecodePixelWidth）
-├─ tools/
-│  ├─ capture.ps1             # 抓单个窗口截图的小工具
-│  ├─ make-screenshots.ps1    # 自动切换视图并批量截图
-│  ├─ shoot-theme.ps1         # 切换主题后重新出图（深/浅两套）
-│  ├─ shoot-offline.ps1       # 离线重拍全部界面图（走 snap-host，不依赖桌面合成）
-│  ├─ snap-host/              # 截图宿主：直接 new 窗口 + RenderTargetBitmap 渲染成 PNG
-│  ├─ shot-dialogs.ps1        # 抓设置对话框
-│  ├─ audit-layout.ps1        # UIA 排版审计（单窗口越界 / 重叠检测）
-│  ├─ audit-all.ps1           # 一次性审计全部窗口，结果图存 docs/audit/
-│  ├─ seed-demo.ps1           # 造演示数据
-│  ├─ smoke-test.ps1          # UIA 冒烟测试（切视图 / 搜索 / 收藏筛选）
-│  ├─ make-logo.py            # 生成图标：ico（10 尺寸）+ PNG（Pillow）
-│  ├─ release.ps1             # 版本号规则 + 构建 + 记录（同一天只递增第三位）
-│  ├─ release-history.json    # 发版记录（日期 / 版本 / 大小 / SHA256）
-│  ├─ upload-asset.ps1        # 把构建产物传到 release（uploads.github.com）
-│  └─ push-files-api.ps1      # github.com 不通时改走 api.github.com 提交
-└─ docs/screenshots/          # README 用图
-```
-
-**技术选型**：C# + WPF（.NET 8）。零第三方 NuGet 依赖——图标提取直接 P/Invoke `IShellItemImageFactory`，注册表读写走 `Microsoft.Win32`，占位封面由名字哈希算一个渐变画刷，系统主题监听走 `Microsoft.Win32.SystemEvents`，硬件信息走 Win32（`GetSystemInfo` / `GlobalMemoryStatusEx` / `EnumDisplayDevices`）与注册表，电源方案直接调 `powrprof.dll`。界面无外部 UI 框架开销，首屏启动约 1 秒。
-
-**性能做法**：卡片列表用自写的 `VirtualizingWrapPanel`（实现 `IScrollInfo`），只给视口覆盖到的行生成容器；图片经 `ImageCache` 按 `DecodePixelWidth=320` 解码并冻结复用；没有封面的游戏不画位图，直接铺一个按名字哈希出来的 `LinearGradientBrush`。所以游戏库从 6 个长到 200 个，首屏耗时基本不变。
-
----
-
-## 开发路线
-
-- [x] **P0 核心**：游戏墙展示 + 手动（含拖拽 / 粘贴）添加 + 双击启动 + 右键菜单
-- [x] **P1 重要**：实时搜索 + 标签分类筛选 + 封面自定义 + 拖拽排序 + 收藏
-- [x] **P2 增强**：自动扫描 + 平台导入（Steam/Epic/GOG）+ 启动统计 + 存档目录
-- [x] **P3 体验**：深/浅/跟随系统三态主题 + 强调色 + 背景图 + 全屏 + 置顶 + 开机自启 + 系统托盘
-- [x] **1.0.0**：首个公开版 —— 游戏墙展示、手动 / 拖拽 / 粘贴添加、双击启动、扫描与平台导入
-- [x] **1.0.1**：排版收尾 —— 工具栏与各对话框控件高度统一、底部操作条不再被内容压住
-- [x] **1.0.2**：重新设计应用图标
-- [x] **1.0.3**：卡片列表虚拟化，游戏库变大也不再拖慢启动
-- [x] **1.0.4**：真正认出游戏 —— 扫描过滤平台本体 / 运行库、Steam 快捷方式按 `steam://` 识别、本地取 Steam 官方封面
-- [x] **1.0.5**：全新暗黑霓虹视觉（深空黑 + 电光青 + 外发光）、控件尺寸与留白统一、
-      五个对话框重做、应用图标改为几何绘制的大写字母 G
-- [x] **1.0.6**：视图精简为卡片式 / 列表式两种（卡片带悬停放大与选中呼吸光效）、
-      新增「关于 GameWall」窗口与作者信息、内置检查更新（GitHub 版本号 + 国内镜像加速 + SHA256 校验 + 自替换重启）
-- [x] **1.0.7**：桌面整理——把已经收进游戏墙的游戏快捷方式从桌面挪到备份目录（只挪不删、可一键还原），
-      扫描 / 导入 / 拖放之后主动询问，顶栏提示「桌面还能再干净一点」
-- [x] **1.0.8**：还原快捷方式后自动清理空备份批次，整理结果提示的路径修正
-- [x] **1.0.9**：卡片默认宽度从 208 收到 150（老配置自动迁移）、去掉青转紫的渐变改为青→琥珀、
-      占位封面改用固定暗色板（不再随机取色相）、卡片动效开关真正生效、关闭「显示名称」时
-      去掉多余的底部遮罩、删除游戏时一并清理图标缓存、设置里取消能撤回主题预览、托盘菜单补齐入口
-- [x] **1.0.10**：新增「游戏工具箱」——本机硬件一览（CPU / 内存 / 显卡 / 硬盘 / 显示器 / 主板 / 网卡）、
-      43 项 Windows 游戏优化方案（六类分组、三套预设、应用前先记旧值可随时还原）、
-      电源方案一键切换（powrprof 直调）、硬件报告导出 TXT / JSON
-- [x] **1.0.11**：封面从正方形改为 2:3 竖版（150×225），列表缩略图同步；README 去掉「关于」截图
-- [x] **1.0.12**：游戏工具箱重排为「左栏分类 + 右侧整块内容」，优化项按六类整合成一页一类，
-      新增搜索、全选本类 / 清空勾选、分类角标计数、权限状态卡、电源方案卡片选与说明，
-      快捷键 `Ctrl+1/2/3` 切页、`Ctrl+F` 搜索、`Esc` 逐层退出
-- [x] **1.0.13**：硬件页不再显示「未知」——读不到的字段整行隐藏、远程/虚拟显示适配器过滤掉、
-      修复显示器分辨率与刷新率读不到的问题（`DEVMODEW` 结构体大小不符）、
-      机型占位符（`System Product Name` 等）不再当成机型显示、Windows 11 不再显示成 Windows 10
-- [x] **1.0.14**：硬件页每行的标题列改为按内容自适应并跨行共享宽度，磁盘容量不再被截断；
-      磁盘只显示「C:（本地磁盘）」这样的盘符与介质类型，用户自己起的卷标不再挤占标题列
-- [ ] 后续可做：多语言、游戏时长统计（需要注入/进程监控）、手柄导航、
-      云同步（用户自己的同步盘）、截图预览墙、按最近游玩自动排序
 
 ---
 
