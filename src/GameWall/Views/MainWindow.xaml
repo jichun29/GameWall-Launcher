@@ -208,13 +208,17 @@
                                         HorizontalAlignment="Center" VerticalAlignment="Center"
                                         Margin="0,0,0,34"
                                         Visibility="{Binding UsesPlaceholder, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="{Binding InitialGlyph}"
-                                               FontSize="54"
-                                               FontWeight="Bold"
-                                               Foreground="White"
-                                               Opacity="0.9"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center" />
+                                    <!-- 用 Viewbox 兜住字数：占位字可能是两个汉字（「英雄」）
+                                         或三个字母（"ITT"），字号写死会溢出，这里按方框等比缩放 -->
+                                    <Viewbox Margin="14" Stretch="Uniform">
+                                        <TextBlock Text="{Binding InitialGlyph}"
+                                                   FontSize="54"
+                                                   FontWeight="Bold"
+                                                   Foreground="White"
+                                                   Opacity="0.9"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Viewbox>
                                 </Border>
                             </Grid>
 
@@ -601,9 +605,35 @@
                                 </Image.Effect>
                             </Image>
                             <StackPanel VerticalAlignment="Center" Margin="12,0,0,0">
-                                <TextBlock Text="GameWall" FontSize="17" FontWeight="Bold"
-                                           Foreground="{DynamicResource Brush.AccentGradient}"
-                                           TextOptions.TextFormattingMode="Ideal" />
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="GameWall" FontSize="17" FontWeight="Bold"
+                                               Foreground="{DynamicResource Brush.AccentGradient}"
+                                               TextOptions.TextFormattingMode="Ideal" />
+                                    <!-- 版本号常驻标题右边。没新版时是个低调的小胶囊；
+                                         有新版时变成可点的「NEW · vX.Y.Z」，点一下直接进更新页。 -->
+                                    <Border x:Name="VersionPill" Margin="8,1,0,0"
+                                            CornerRadius="6" Padding="6,1"
+                                            VerticalAlignment="Center"
+                                            Background="{DynamicResource Brush.SurfaceAlt}"
+                                            BorderBrush="{DynamicResource Brush.BorderSoft}"
+                                            BorderThickness="1"
+                                            Cursor="Hand"
+                                            MouseLeftButtonUp="VersionPill_Click"
+                                            ToolTip="当前版本 · 点一下查看更新">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock x:Name="VersionText" FontSize="10"
+                                                       Foreground="{DynamicResource Brush.TextDim}"
+                                                       Text="{Binding VersionText}" />
+                                            <Border x:Name="NewBadge" Margin="5,0,0,0" CornerRadius="4"
+                                                    Padding="4,0" VerticalAlignment="Center"
+                                                    Background="{DynamicResource Brush.Accent}"
+                                                    Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="NEW" FontSize="9" FontWeight="Bold"
+                                                           Foreground="#04070D" />
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
                                 <!-- 副标题要和主标题拉开行距，不能用负 Margin 硬挤，否则会压住字形下沿 -->
                                 <TextBlock Text="游戏墙 · 本地游戏库" FontSize="10"
                                            Foreground="{DynamicResource Brush.TextFaint}"

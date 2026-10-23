@@ -129,16 +129,31 @@ public static class CoverFactory
                 new Rect(boxLeft, boxTop, box, box),
                 54, 54);
 
-            // 字长不同（1 字 / 2 字母）时自动缩放字号，保证不溢出方框
+            // 字长不同（1 个汉字 / 2~3 个字母）时自动缩放字号，保证不溢出方框。
+            // 直接按字号算会溢出：3 个字母 × 168px 已经超过 300px 的框宽了，
+            // 所以先按目标字号量一次，宽或高超出就等比缩。
             var fontSize = glyph.Length >= 2 ? 168.0 : 210.0;
-            var text = new FormattedText(
-                glyph,
-                CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                new Typeface(new FontFamily("Microsoft YaHei UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal),
-                fontSize,
-                new SolidColorBrush(Color.FromArgb(242, 255, 255, 255)),
-                1.0);
+            var typeface = new Typeface(new FontFamily("Microsoft YaHei UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+            FormattedText text;
+            while (true)
+            {
+                text = new FormattedText(
+                    glyph,
+                    CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    typeface,
+                    fontSize,
+                    new SolidColorBrush(Color.FromArgb(242, 255, 255, 255)),
+                    1.0);
+
+                var fits = text.Width <= box - 44 && text.Height <= box - 44;
+                if (fits || fontSize <= 40)
+                {
+                    break;
+                }
+
+                fontSize *= 0.88;
+            }
 
             dc.DrawText(text, new Point((Width - text.Width) / 2, boxTop + (box - text.Height) / 2));
         }
@@ -150,11 +165,14 @@ public static class CoverFactory
     }
 
     /// <summary>
-    /// 占位封面上显示的字。规则与 GameCardViewModel.InitialGlyph 保持一致：
-    /// 中文取第一个字；英文取前两个单词首字母（Sniper Elite → SE）；
-    /// 单个单词取前两个字母（JAPANSTIGMATIZED → JA）。
+    /// 占位封面上显示的字。卡片上的字母标牌和这里渲染出的占位图共用同一套规则，
+    /// 否则同一个游戏在两种渲染路径下会显示不同的字。
+    ///
+    /// 中文取前两个字（「英雄联盟」→「英雄」）；英文取前两三个单词的首字母
+    /// （Sniper Elite → SE、It Takes Two → ITT）；单个单词取前两个字母
+    /// （JAPANSTIGMATIZED → JA）。字数由 Viewbox / 字号自适应兜住，不会溢出。
     /// </summary>
-    private static string BuildGlyph(string? name)
+    public static string BuildGlyph(string? name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -164,16 +182,21 @@ public static class CoverFactory
         var trimmed = name.Trim();
         if (trimmed[0] > 0x7F)
         {
-            return trimmed[..1];
+            return trimmed.Length >= 2 ? trimmed[..2] : trimmed[..1];
         }
 
-        var words = trimmed.Split(new[] { ' ', '-', '_', ':', '.', '\'' }, StringSplitOptions.RemoveEmptyEntries);
-        if (words.Length >= 2 && words[0].Length > 0 && words[1].Length > 0)
+        var words = trimmed
+            .Split(new[] { ' ', '-', '_', ':', '.', '\'', '!' }, StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length > 0 && char.IsLetter(w[0]))
+            .Take(3)
+            .ToList();
+
+        if (words.Count >= 2)
         {
-            return (char.ToUpperInvariant(words[0][0]).ToString() + char.ToUpperInvariant(words[1][0])).ToUpperInvariant();
+            return string.Concat(words.Select(w => char.ToUpperInvariant(w[0])));
         }
 
-        var word = words.Length > 0 ? words[0] : trimmed;
+        var word = words.Count > 0 ? words[0] : trimmed;
         return word.Length >= 2
             ? (char.ToUpperInvariant(word[0]).ToString() + char.ToUpperInvariant(word[1]))
             : char.ToUpperInvariant(word[0]).ToString();

@@ -130,9 +130,10 @@ public sealed class GameCardViewModel : ObservableObject
     /// <summary>
     /// 占位封面上显示的字。
     ///
-    /// 英文名取前两个单词的首字母（Sniper Elite → SE，JAPANSTIGMATIZED 这种
-    /// 连写的一整串就取前两个字母 JS），中文名取第一个字。
-    /// 比只显示一个字母更容易让人在一屏卡片里认出是哪款游戏。
+    /// 中文名取前两个字（「英雄联盟」→「英雄」）：只留一个字在一整墙卡片里
+    /// 根本认不出是哪款游戏。英文名取前两三个单词的首字母（Sniper Elite → SE、
+    /// It Takes Two → ITT），连写的一整串（JAPANSTIGMATIZED）取前两个字母。
+    /// 字数变多以后由 XAML 里的 Viewbox 自动缩放，不会溢出标牌。
     /// </summary>
     public string InitialGlyph => BuildGlyph(Name);
 
@@ -145,21 +146,25 @@ public sealed class GameCardViewModel : ObservableObject
 
         var trimmed = name.Trim();
 
-        // 中文（或任何非 ASCII 字母）开头：取第一个字就够了，
-        // 两个字挤在 104px 的方框里会糊成一团。
+        // 中文（或任何非 ASCII 字母）开头：取前两个字
         if (trimmed[0] > 0x7F)
         {
-            return trimmed[..1];
+            return trimmed.Length >= 2 ? trimmed[..2] : trimmed[..1];
         }
 
-        var words = trimmed.Split(new[] { ' ', '-', '_', ':', '.', '\'' }, StringSplitOptions.RemoveEmptyEntries);
-        if (words.Length >= 2 && words[0].Length > 0 && words[1].Length > 0)
+        var words = trimmed
+            .Split(new[] { ' ', '-', ':', '_', '.', '\'', '!' }, StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length > 0 && char.IsLetter(w[0]))
+            .Take(3)
+            .ToList();
+
+        if (words.Count >= 2)
         {
-            return (char.ToUpperInvariant(words[0][0]).ToString() + char.ToUpperInvariant(words[1][0])).ToUpperInvariant();
+            return string.Concat(words.Select(w => char.ToUpperInvariant(w[0])));
         }
 
-        // 单个单词：首字母大写 + 紧跟的一个小写字母，撑满方框不显得空
-        var word = words.Length > 0 ? words[0] : trimmed;
+        // 单个单词：取前两个字母，撑满标牌不显得空
+        var word = words.Count > 0 ? words[0] : trimmed;
         return word.Length >= 2
             ? (char.ToUpperInvariant(word[0]).ToString() + char.ToUpperInvariant(word[1]))
             : char.ToUpperInvariant(word[0]).ToString();

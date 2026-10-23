@@ -163,6 +163,45 @@ public partial class MainWindow : Window
 
     private void ShowUpdate_Click(object sender, RoutedEventArgs e) => ShowAbout();
 
+    /// <summary>
+    /// 点左上角的版本实胶囊：进「关于」窗口看版本与更新。
+    ///
+    /// 移植说明：版本号和 NEW 标记是常驻显示的，用户看到 NEW 想点的时候
+    /// 直觉是点那个胶囊本身，所以这里也要能进更新页。已经查出有新版本时
+    /// 直接把结果带过去（省一次网络请求），否则进窗口后静默查一次。
+    /// </summary>
+    private void VersionPill_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+
+        try
+        {
+            var about = new AboutWindow { Owner = this };
+
+            if (_vm.AvailableUpdate is { } pending)
+            {
+                about.ApplyKnownResult(new UpdateCheckResult
+                {
+                    Success = true,
+                    HasUpdate = true,
+                    Info = pending,
+                    CurrentVersion = AppInfo.Version,
+                    Message = $"发现新版本 v{pending.Version}（当前 {AppInfo.VersionLabel}）。"
+                });
+            }
+            else
+            {
+                about.AutoCheckOnLoad();
+            }
+
+            about.Show();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("打开关于窗口失败", ex);
+        }
+    }
+
     private void DismissUpdate_Click(object sender, RoutedEventArgs e) => _vm.DismissUpdate();
 
     // ══════════════ 桌面整理 ══════════════

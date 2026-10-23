@@ -107,6 +107,15 @@ public static class CoverMatcher
                 }
             }
 
+            // ── 线索 5：本机没有这款 Steam 游戏，就去商店按名字搜一次 ──
+            // 破解版 / 绿色版 / 下载站的散装游戏只能靠这条：
+            // 目录里没有 steam_appid.txt，本机 Steam 库也没有，唯一线索就是名字。
+            var searched = CoverArtService.TryFindCoverByName(gameName, gameId);
+            if (!string.IsNullOrWhiteSpace(searched))
+            {
+                return new CoverMatch { Path = searched!, Source = "Steam 商店搜索" };
+            }
+
             return null;
         }
         catch (Exception ex)

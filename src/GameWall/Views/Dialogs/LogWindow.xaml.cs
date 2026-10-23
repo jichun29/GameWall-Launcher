@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -136,7 +137,19 @@ public partial class LogWindow : Window
 
         try
         {
-            Clipboard.SetText(Logger.ExportText(_items));
+            var text = Logger.ExportText(_items);
+
+            // 剪贴板是全局独占资源：别的程序（输入法、聊天工具、剪贴板同步）
+            // 正好持有它时会抛 CLIPBRD_E_CANT_OPEN (0x800401D0)。
+            // 这种情况重试几次基本都能成，直接报错让用户「改用导出」太不友好。
+            if (!TrySetClipboardText(text))
+            {
+                Logger.Warn("剪贴板被其它程序占用，复制失败");
+                MessageBox.Show(this, "剪贴板正被其它程序占用，稍后再试一次，或者改用「导出为文本…」。", "运行日志",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             MessageBox.Show(this, $"已复制 {_items.Count} 条日志到剪贴板。", "运行日志",
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -146,6 +159,25 @@ public partial class LogWindow : Window
             MessageBox.Show(this, "复制失败，可以改用「导出为文本…」。", "运行日志",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+    }
+
+    /// <summary>重试几次写剪贴板，全部失败返回 false（不抛异常）。</summary>
+    private static bool TrySetClipboardText(string text)
+    {
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                Clipboard.SetText(text);
+                return true;
+            }
+            catch (System.Runtime.InteropServices.COMException)
+            {
+                Thread.Sleep(60);
+            }
+        }
+
+        return false;
     }
 
     private void Export_Click(object sender, RoutedEventArgs e)

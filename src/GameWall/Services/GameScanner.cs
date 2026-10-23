@@ -910,8 +910,15 @@ public sealed class GameScanner
     private static readonly string[] ClientSubDirNames =
     {
         "launcher", "client", "leagueclient", "launchers", "cross", "tcls",
-        "tenio", "teniodl", "wecamelauncher", "rail", "rail_apps", "update",
+        "tenio", "teniodl", "wegamelauncher", "rail", "rail_apps", "update",
         "updater", "redist", "support", "tools",
+        // 下面这些是「游戏内嵌的另一个客户端 / 模式 / 反作弊」。
+        // 它们有自己的 exe，但都属于同一款游戏的组件，单拎出来只会让墙上多几张假卡片。
+        //   TFT\TFTTencentClient.exe          —— 云顶之弈（LoL 的一个模式）
+        //   Game\AntiCheatExpert\SGuard\...   —— 腾讯反作弊
+        //   Riot Client\RiotClientServices.exe —— Riot 平台
+        "tft", "anticheatexpert", "sguard", "riot client", "riotclientux",
+        "vanguard", "tenprotect", "unrealengine", "easyanticheat", "battleye",
     };
 
     /// <summary>

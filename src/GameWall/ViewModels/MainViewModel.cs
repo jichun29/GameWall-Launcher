@@ -295,6 +295,9 @@ public sealed class MainViewModel : ObservableObject
         private set => SetProperty(ref _updateBanner, value);
     }
 
+    /// <summary>标题旁边常驻显示的版本号，例如「v1.0.19」。</summary>
+    public string VersionText => AppInfo.VersionLabel;
+
     /// <summary>检查更新的成功回调，由 MainWindow 注入（用来弹对话框）。</summary>
     public Func<UpdateCheckResult, Task>? UpdateFoundHandler { get; set; }
 

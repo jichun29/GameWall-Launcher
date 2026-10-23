@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -237,6 +238,109 @@ public static class CoverArtService
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("GameWall/" + AppInfo.Version);
             return _httpClient;
         }
+    }
+
+    /// <summary>
+    /// 按游戏名去 Steam 商店搜索，命中后取那个 appid 的官方封面。
+    ///
+    /// 这是给「本机根本没装这款 Steam 游戏」准备的兜底：破解版 / 绿色版 / 下载站散装游戏
+    /// 的目录里既没有 steam_appid.txt，本机 Steam 库里也没有它，
+    /// 只剩「名字」这一条线索可用。
+    ///
+    /// 搜索结果必须再过一遍名字相似度，否则搜 "Split" 会命中 "Splitgate"、
+    /// 搜 "Hades" 会命中 "Hades II"，封面贴错比没有封面更糟。
+    /// </summary>
+    public static string? TryFindCoverByName(string? gameName, string gameId)
+    {
+        if (!OnlineEnabled || string.IsNullOrWhiteSpace(gameName))
+        {
+            return null;
+        }
+
+        try
+        {
+            var keyword = gameName!.Trim();
+            if (keyword.Length < 2)
+            {
+                return null;
+            }
+
+            // 先用英文商店搜，再用中文商店搜一次。
+            // 英文商店返回的是游戏原名，和扫描出来的目录名/程序名对得上；
+            // 中文商店会把结果名本地化成「双影奇境」，搜 "Split Fiction" 时相似度是 0，
+            // 明明搜到了却过不了校验。所以英文优先，中文兜底（用户库里本来就存中文名时用得上）。
+            foreach (var language in new[] { "english", "schinese" })
+            {
+                var cover = SearchAndFetch(keyword, language, gameId);
+                if (!string.IsNullOrWhiteSpace(cover))
+                {
+                    return cover;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 搜索超时不算错误：没网的时候每款游戏都报错会把日志刷满
+        }
+        catch (Exception ex)
+        {
+            Logger.Info($"按名字搜封面失败（{gameName}）：{ex.Message}");
+        }
+
+        return null;
+    }
+
+    /// <summary>在一个语言版本的 Steam 商店里搜关键词，命中同名游戏后取它的封面。</summary>
+    private static string? SearchAndFetch(string keyword, string language, string gameId)
+    {
+        var url = "https://store.steampowered.com/api/storesearch/?term="
+                  + Uri.EscapeDataString(keyword)
+                  + "&l=" + language + "&cc=cn";
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var json = GetHttpClient().GetStringAsync(url, cts.Token).GetAwaiter().GetResult();
+        using var doc = JsonDocument.Parse(json);
+
+        if (!doc.RootElement.TryGetProperty("items", out var items)
+            || items.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        foreach (var item in items.EnumerateArray())
+        {
+            if (!item.TryGetProperty("id", out var idProp)
+                || !item.TryGetProperty("name", out var nameProp))
+            {
+                continue;
+            }
+
+            var id = idProp.ValueKind == JsonValueKind.Number
+                ? idProp.GetInt64().ToString()
+                : idProp.GetString();
+            var name = nameProp.GetString();
+
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            // 名字对不上就换下一个结果，全都对不上就放弃。
+            // 这一步不能省：搜 "Hades" 会先命中 "Hades II"，封面贴错比没有封面更糟。
+            if (!NameSimilarity.ProbablySame(keyword, name, 0.72))
+            {
+                continue;
+            }
+
+            var cover = TryFetchSteamCoverByAppId(id, gameId);
+            if (!string.IsNullOrWhiteSpace(cover))
+            {
+                Logger.Info($"封面匹配（Steam 商店搜索「{keyword}」→ {name} / {id}）：{keyword}");
+                return cover;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>在 Steam 安装目录的 appcache 里找某个 appid 的封面文件。</summary>
