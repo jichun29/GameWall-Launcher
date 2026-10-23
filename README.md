@@ -206,20 +206,27 @@ python tools/make-logo.py
 ## 系统要求
 
 - Windows 10 1809+ / Windows 11（x64）
-- 免安装版：无额外依赖（自包含单文件）
+- 安装版 / 免安装版：无额外依赖（自包含单文件）
 - 框架依赖版：需 .NET 8 Desktop Runtime
 
 ## 安装与运行
 
-### 方式一：下载即用（推荐）
+### 方式一：安装版（推荐）
 
-1. 到 [Releases](https://github.com/jichun29/GameWall-Launcher/releases) 下载 `GameWall.exe`
+1. 到 [Releases](https://github.com/jichun29/GameWall-Launcher/releases) 下载 `GameWall-Setup-x.y.z.exe`
+2. 双击安装。**默认装到非系统盘**——程序会枚举所有本地磁盘，跳过 C 盘，在剩下的盘里挑剩余空间最大的那个（例如 `E:\Program Files\GameWall`；该盘没有 `Program Files` 就直接放 `E:\GameWall`）。只有整台机器就一个 C 盘时才装到 C 盘。
+3. 安装过程会问你要不要在桌面放快捷方式，装完可以直接启动
+4. 卸载走「设置 → 应用」或开始菜单里的「卸载 GameWall」。**卸载只删程序本身，`%AppData%\GameWall` 里的游戏库、封面和优化备份都会保留**
+
+### 方式二：免安装版
+
+1. 下载 `GameWall.exe`
 2. 放到任意目录（例如 `D:\Tools\GameWall\`），双击运行
 3. 首次启动会显示引导页，点「开始使用」即可
 
 > 单文件自包含版约 66 MB，首次启动会解压到临时目录（约 2 秒），之后启动稳定在 1 秒以内。
 
-### 方式二：从源码编译
+### 方式三：从源码编译
 
 见 [从源码编译](#从源码编译)。
 
@@ -247,7 +254,13 @@ python tools/make-logo.py
   崩溃上报、录制器、平台本体（`steam.exe`、`EpicGamesLauncher.exe`、`UbisoftExtension.exe`、`WeGame.exe` …）
 - **同一游戏只留主程序**：一个《英雄联盟》目录里有 90 多个 exe（大厅、启动器、录制器、反作弊、教练 AI），
   按「路径里有没有 client/launcher/cross 这类目录 → 埋得深不深 → 体积」三档打分，只留 `Game\League of Legends.exe`
-- **名字取商店里的游戏名**：`steamapps\common\A Pond Hunt Demo\PumpFish.exe` 会显示成「A Pond Hunt Demo」而不是「PumpFish」
+- **名字取游戏自己的目录名，不取自建文件夹名**：你把游戏放在 `D:\Games\XIAORIZI\JAPANSTIGMATIZED\` 这种自己起的分类夹里时，
+  显示的是 `JAPANSTIGMATIZED` 而不是 `XIAORIZI`——自建文件夹是分类，不是游戏名，用它去找封面永远对不上
+- **自动配封面**：扫描完成时按四条线索找图，找到就存进 `%AppData%\GameWall\covers\`（全本地，不联网）：
+  1. 游戏目录里自带的 `cover.png` / `folder.jpg` / `poster.*` 之类（按文件名和像素尺寸挑，太小的图标会被排除）
+  2. 目录里的 `steam_appid.txt` → 直接用该 appid 去本地 Steam 缓存取官方竖版封面
+  3. 按游戏名和本机 Steam 库里的游戏做模糊匹配（中英对照、简称全称都能认，比如「英雄联盟微game版」↔「英雄联盟」）
+  4. 都没有就退到渐变底 + 游戏名首字母标牌（多单词取前两词首字母，如 `Sniper Elite 4` → **SE**）
 - 跳过已添加的游戏，只导入新的
 
 目录、递归深度、最小 exe 体积都可以在 **⚙ 设置 → 扫描目录** 里调整。
@@ -315,6 +328,17 @@ python tools/make-logo.py
 > **不会删除任何文件。** 想找回来：设置 → 桌面整理 → 「还原到桌面」（还原最近一批，已存在同名文件时跳过不覆盖），或直接点「打开备份目录」自己搬。
 
 公共桌面 `C:\Users\Public\Desktop` 里的快捷方式会列出来但不允许勾选（那是所有用户共享的，动它需要管理员权限）。
+
+### 怎么认定「这条快捷方式就是库里那个游戏」
+
+按四条判据从强到弱比，前三条命中就够，第四条是给「同一款游戏装了两份」准备的：
+
+| 判据 | 说明 |
+| --- | --- |
+| 启动协议相同 | 同一个 `steam://rungameid/<appid>` 一定是同一款 |
+| exe 路径相同 | 最直接 |
+| 同一个安装目录 | 快捷方式有时指向游戏目录里的启动器而不是主程序 |
+| **快捷方式的名字对得上** | 专门对付平台版差异：桌面上那条叫「英雄联盟微game版」，库里收录的是「英雄联盟（含经典模式）」，两份文件、两个目录、毫无路径关系，只能靠名字认。<br>比对用的是**快捷方式自己的显示名**（玩家能看到的那串字），不是它指向的 exe 文件名——拿 `Client` 去跟「英雄联盟」比永远比不出结果。<br>中英对照、简称全称、版本后缀都能认，但 Sequel 会分开：`Sniper Elite 4` 和 `3` 不会互相认领 |
 
 ---
 
@@ -468,6 +492,19 @@ dotnet publish src/GameWall/GameWall.csproj -c Release -r win-x64 --self-contain
 > 并去掉 `EnableCompressionInSingleFile`（单文件压缩只在自包含发布时可用）。
 
 产物在 `dist/GameWall.exe`，单文件、免安装、无第三方依赖。自包含版 66 MB（含 .NET 运行时），框架依赖版仅 380 KB。
+
+### 打安装包
+
+安装包用 [Inno Setup 6](https://jrsoftware.org/isinfo.php) 生成，脚本在 `installer/GameWall.iss`：
+
+```powershell
+# 先产出 dist\GameWall.exe，再编译安装包
+ISCC.exe installer\GameWall.iss
+```
+
+产物是 `dist\GameWall-Setup-<版本>.exe`，版本号自动从 `GameWall.exe` 的文件版本读取。
+
+安装包的默认目录由脚本里的 `PickInstallDir()` 现算：枚举所有本地固定磁盘 → 跳过系统盘 → 在剩下的盘里挑剩余空间最大的 → 该盘有 `Program Files` 就装进去，没有就直接放盘符根下。只有整台机器只有一个 C 盘时才装到 C 盘。桌面快捷方式由用户在安装向导里勾选，卸载时不会碰 `%AppData%\GameWall`。
 
 ### 用 Visual Studio
 

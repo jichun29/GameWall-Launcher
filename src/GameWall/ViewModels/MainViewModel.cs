@@ -540,9 +540,9 @@ public sealed class MainViewModel : ObservableObject
             entry.Name = Path.GetFileNameWithoutExtension(entry.ExecutablePath);
         }
 
-        // 平台游戏顺手去本地 Steam 缓存里捞一张真封面。
-        // 这一步只读本地文件，不联网；捞不到就继续用渐变 + 图标/首字的占位方案。
-        TryAttachPlatformCover(entry);
+        // 顺手去本地找一张真封面（游戏目录自带图 / steam_appid.txt / Steam 库名匹配）。
+        // 这一步只读本地文件，不联网；找不到就继续用渐变 + 图标/首字的占位方案。
+        TryAttachCover(entry);
 
         _library.Add(entry);
 
@@ -600,13 +600,23 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 给 Steam 游戏补上官方封面（从本地 appcache 里拷，不联网）。
-    /// 已经有封面、或者不是 Steam 游戏，直接跳过。
+    /// 尽量给新加进来的游戏找一张真封面，全部在本地完成：
+    /// 先看游戏目录里有没有自带图片、有没有 steam_appid.txt，
+    /// 再拿名字去本机 Steam 库里模糊匹配；Steam 协议启动的直接按 appid 取。
+    /// 都找不到就留着空，卡片会自动用占位封面。
     /// </summary>
-    private static void TryAttachPlatformCover(GameEntry entry)
+    private static void TryAttachCover(GameEntry entry)
     {
         if (!string.IsNullOrWhiteSpace(entry.CoverPath))
         {
+            return;
+        }
+
+        // 本地 exe 启动的游戏也有机会拿到封面（游戏目录自带图 / steam_appid.txt / 库名匹配）
+        var matched = CoverMatcher.TryResolve(entry.Name, entry.ExecutablePath, entry.Id);
+        if (matched is not null)
+        {
+            entry.CoverPath = matched.Path;
             return;
         }
 
@@ -886,9 +896,9 @@ public sealed class MainViewModel : ObservableObject
                     Source = platform is not null ? $"{platform.Platform} 扫描" : "自动扫描",
                 };
 
-                // 扫描出来的 Steam 游戏也顺手把本地缓存里的官方封面带上，
+                // 扫描出来的游戏也顺手把本地能找到的官方封面带上，
                 // 否则重扫一遍之后墙上会突然少几张封面
-                TryAttachPlatformCover(entry);
+                TryAttachCover(entry);
 
                 _library.Add(entry);
                 added++;

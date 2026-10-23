@@ -127,7 +127,43 @@ public sealed class GameCardViewModel : ObservableObject
     /// <summary>既没有封面也没有图标，只能显示名字首字。</summary>
     public bool UsesPlaceholder => !HasCover && string.IsNullOrEmpty(IconImage);
 
-    public string InitialGlyph => string.IsNullOrWhiteSpace(Name) ? "?" : Name.Trim()[..1].ToUpperInvariant();
+    /// <summary>
+    /// 占位封面上显示的字。
+    ///
+    /// 英文名取前两个单词的首字母（Sniper Elite → SE，JAPANSTIGMATIZED 这种
+    /// 连写的一整串就取前两个字母 JS），中文名取第一个字。
+    /// 比只显示一个字母更容易让人在一屏卡片里认出是哪款游戏。
+    /// </summary>
+    public string InitialGlyph => BuildGlyph(Name);
+
+    private static string BuildGlyph(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "?";
+        }
+
+        var trimmed = name.Trim();
+
+        // 中文（或任何非 ASCII 字母）开头：取第一个字就够了，
+        // 两个字挤在 104px 的方框里会糊成一团。
+        if (trimmed[0] > 0x7F)
+        {
+            return trimmed[..1];
+        }
+
+        var words = trimmed.Split(new[] { ' ', '-', '_', ':', '.', '\'' }, StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length >= 2 && words[0].Length > 0 && words[1].Length > 0)
+        {
+            return (char.ToUpperInvariant(words[0][0]).ToString() + char.ToUpperInvariant(words[1][0])).ToUpperInvariant();
+        }
+
+        // 单个单词：首字母大写 + 紧跟的一个小写字母，撑满方框不显得空
+        var word = words.Length > 0 ? words[0] : trimmed;
+        return word.Length >= 2
+            ? (char.ToUpperInvariant(word[0]).ToString() + char.ToUpperInvariant(word[1]))
+            : char.ToUpperInvariant(word[0]).ToString();
+    }
 
     /// <summary>卡片右下角的补充信息。</summary>
     public string Subtitle
@@ -224,12 +260,21 @@ public sealed class GameCardViewModel : ObservableObject
             changed = true;
         }
 
-        // Steam 游戏还没封面时，去本地 appcache 里找官方竖版封面。
-        // 跟提取图标一样属于「重 IO」，所以和图标放在同一个 allowExtractIcon 开关后面，
+        // 还没封面时去本地找一张：游戏目录自带图片 → steam_appid.txt →
+        // Steam appid → Steam 库名模糊匹配。
+        // 跟提取图标一样属于「重 IO」，所以放在同一个 allowExtractIcon 开关后面，
         // 首屏构造卡片时不会碰它，等后台预热再补。
-        if (allowExtractIcon && string.IsNullOrWhiteSpace(Entry.CoverPath) && Entry.LaunchKind == LaunchKind.Steam)
+        if (allowExtractIcon && string.IsNullOrWhiteSpace(Entry.CoverPath))
         {
-            var cover = CoverArtService.TryFetchSteamCover(Entry.LaunchUri, Entry.Id);
+            var matched = CoverMatcher.TryResolve(Entry.Name, Entry.ExecutablePath, Entry.Id);
+            var cover = matched?.Path;
+
+            // 兜底：协议启动的 Steam 游戏直接按 appid 取
+            if (string.IsNullOrWhiteSpace(cover) && Entry.LaunchKind == LaunchKind.Steam)
+            {
+                cover = CoverArtService.TryFetchSteamCover(Entry.LaunchUri, Entry.Id);
+            }
+
             if (!string.IsNullOrWhiteSpace(cover))
             {
                 Entry.CoverPath = cover!;

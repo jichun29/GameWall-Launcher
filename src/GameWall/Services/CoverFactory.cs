@@ -116,18 +116,31 @@ public static class CoverFactory
                 null,
                 new Rect(0, 0, Width, Height));
 
-            // 中央首字
-            var initial = FirstGlyph(gameName);
+            // 中央标牌：原来只画一个光秃秃的大字母，摆在渐变底上像是渲染坏了；
+            // 这里补一圈淡描边和底板，做成杂志刊头字那种感觉，整墙看过去更统一。
+            var glyph = BuildGlyph(gameName);
+            const double box = 300;
+            var boxLeft = (Width - box) / 2;
+            var boxTop = (Height - box) / 2 - 40;
+
+            dc.DrawRoundedRectangle(
+                new SolidColorBrush(Color.FromArgb(26, 255, 255, 255)),
+                new Pen(new SolidColorBrush(Color.FromArgb(61, 255, 255, 255)), 3),
+                new Rect(boxLeft, boxTop, box, box),
+                54, 54);
+
+            // 字长不同（1 字 / 2 字母）时自动缩放字号，保证不溢出方框
+            var fontSize = glyph.Length >= 2 ? 168.0 : 210.0;
             var text = new FormattedText(
-                initial,
+                glyph,
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
                 new Typeface(new FontFamily("Microsoft YaHei UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal),
-                230,
-                new SolidColorBrush(Color.FromArgb(235, 255, 255, 255)),
+                fontSize,
+                new SolidColorBrush(Color.FromArgb(242, 255, 255, 255)),
                 1.0);
 
-            dc.DrawText(text, new Point((Width - text.Width) / 2, (Height - text.Height) / 2 - 40));
+            dc.DrawText(text, new Point((Width - text.Width) / 2, boxTop + (box - text.Height) / 2));
         }
 
         var rtb = new RenderTargetBitmap(Width, Height, 96, 96, PixelFormats.Pbgra32);
@@ -136,7 +149,12 @@ public static class CoverFactory
         return rtb;
     }
 
-    private static string FirstGlyph(string name)
+    /// <summary>
+    /// 占位封面上显示的字。规则与 GameCardViewModel.InitialGlyph 保持一致：
+    /// 中文取第一个字；英文取前两个单词首字母（Sniper Elite → SE）；
+    /// 单个单词取前两个字母（JAPANSTIGMATIZED → JA）。
+    /// </summary>
+    private static string BuildGlyph(string? name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -144,7 +162,21 @@ public static class CoverFactory
         }
 
         var trimmed = name.Trim();
-        return trimmed[..1].ToUpperInvariant();
+        if (trimmed[0] > 0x7F)
+        {
+            return trimmed[..1];
+        }
+
+        var words = trimmed.Split(new[] { ' ', '-', '_', ':', '.', '\'' }, StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length >= 2 && words[0].Length > 0 && words[1].Length > 0)
+        {
+            return (char.ToUpperInvariant(words[0][0]).ToString() + char.ToUpperInvariant(words[1][0])).ToUpperInvariant();
+        }
+
+        var word = words.Length > 0 ? words[0] : trimmed;
+        return word.Length >= 2
+            ? (char.ToUpperInvariant(word[0]).ToString() + char.ToUpperInvariant(word[1]))
+            : char.ToUpperInvariant(word[0]).ToString();
     }
 
     private static int StableHash(string text)

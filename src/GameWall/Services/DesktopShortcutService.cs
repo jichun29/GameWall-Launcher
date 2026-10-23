@@ -182,7 +182,7 @@ public static class DesktopShortcutService
                 LooksLikeTool = looksLikeTool,
             };
 
-            var match = FindGame(resolved, games);
+            var match = FindGame(resolved, display, games);
             if (match is not null)
             {
                 info.MatchedGameId = match.Id;
@@ -205,8 +205,10 @@ public static class DesktopShortcutService
     ///  1. 协议地址相同（Steam/Epic/GOG 最准确，同一个 appid 一定是同一款）
     ///  2. 可执行文件路径相同
     ///  3. 可执行文件在同一个安装目录下（快捷方式有时指向游戏目录里的启动器而不是主程序）
+    ///  4. 名字对得上（WeGame 版「英雄联盟微game版」和 Steam/独立安装的「英雄联盟」
+    ///     完全是两份文件、两个目录，只能靠名字认）
     /// </summary>
-    private static GameEntry? FindGame(ResolvedLaunch resolved, IReadOnlyList<GameEntry> games)
+    private static GameEntry? FindGame(ResolvedLaunch resolved, string displayName, IReadOnlyList<GameEntry> games)
     {
         if (!string.IsNullOrWhiteSpace(resolved.LaunchUri))
         {
@@ -250,6 +252,39 @@ public static class DesktopShortcutService
                 {
                     return byDir;
                 }
+            }
+        }
+
+        // ── 4. 名字匹配 ──
+        // 比的是「快捷方式本身叫什么」，不是它指向的 exe 叫什么。
+        // 这一条专治「同一款游戏装了两份」的情况：WeGame 版叫
+        // 「英雄联盟微game版」，库里收录的是「英雄联盟（含经典模式）」，
+        // 两者的 exe 路径和安装目录毫无关系，但名字高度相似。
+        //
+        // 这里曾经用 resolved.SuggestedName 去比，结果是拿 exe 文件名（如 Client、
+        // LeagueClient）跟游戏名做比较，永远对不上 —— 玩家给快捷方式起的名字才
+        // 是唯一的线索，而它就在 displayName 里。
+        var shortcutName = string.IsNullOrWhiteSpace(displayName) ? resolved.SuggestedName : displayName;
+        if (!string.IsNullOrWhiteSpace(shortcutName))
+        {
+            GameEntry? best = null;
+            var bestScore = 0.0;
+
+            foreach (var game in games)
+            {
+                var score = NameSimilarity.Score(shortcutName, game.Name);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    best = game;
+                }
+            }
+
+            // 名字匹配要求更高一点的阈值（0.80），因为它是纯语义判断，
+            // 没有路径做校验，门槛低了容易把「英雄联盟」和「英雄联盟手游」之类认错。
+            if (best is not null && bestScore >= 0.80)
+            {
+                return best;
             }
         }
 

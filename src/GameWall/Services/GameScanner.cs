@@ -324,12 +324,19 @@ public sealed class GameScanner
 
             // 同一个游戏目录里往往有好几个 exe（主程序 + 启动器 + shipping 版 + 录制器），
             // 全收进来会让墙上出现两张一模一样的卡片。
-            // 这里按「游戏根目录」归并，只留最像主程序的那个。
-            var byGameRoot = new Dictionary<string, GameCandidate>(StringComparer.OrdinalIgnoreCase);
+            // 这里按「这款游戏自己的目录」归并，只留最像主程序的那个。
+            //
+            // 注意归并键不是 ResolveGameRoot 的结果：用户把游戏塞进自建分类文件夹时，
+            // 那个结果会是分类文件夹（XIAORIZI），于是整个文件夹里的游戏都被算成一款。
+            var byGameDir = new Dictionary<string, GameCandidate>(StringComparer.OrdinalIgnoreCase);
             foreach (var c in results)
             {
                 var root = ResolveGameRoot(c.FilePath, c.ScanRoot);
-                if (byGameRoot.TryGetValue(root, out var existing))
+                var exeDir = Path.GetDirectoryName(c.FilePath) ?? root;
+                var identity = PickGameIdentity(root, exeDir);
+                var key = identity.Dir;
+
+                if (byGameDir.TryGetValue(key, out var existing))
                 {
                     // MainExecutableRank 越小越像主程序，所以新来的分数不占优就直接跳过，
                     // 占优则用新候选覆盖掉旧的那个。
@@ -339,12 +346,14 @@ public sealed class GameScanner
                     }
                 }
 
-                byGameRoot[root] = c;
+                byGameDir[key] = c;
             }
 
-            var deduped = byGameRoot
-                .Select(pair => RenameByGameRoot(pair.Key, pair.Value))
-                .ToList();
+            var deduped = new List<GameCandidate>(byGameDir.Count);
+            foreach (var pair in byGameDir)
+            {
+                deduped.Add(RenameByGameRoot(pair.Key, pair.Value));
+            }
 
             return deduped
                 .OrderByDescending(c => Score(c))
@@ -438,20 +447,20 @@ public sealed class GameScanner
     {
         var exeDir = Path.GetDirectoryName(candidate.FilePath) ?? string.Empty;
 
-        // exe 就在游戏根目录下：目录名和 exe 名的取舍 ChooseName 已经做过，不再覆盖。
-        // 但商店托管的游戏目录例外 —— steamapps\common\A Pond Hunt Demo 里的
-        // 主程序叫 PumpFish.exe，只有 store 目录名才是玩家认得出的游戏名。
-        if (string.Equals(
-                Path.GetFullPath(exeDir).TrimEnd('\\'),
-                Path.GetFullPath(gameRoot).TrimEnd('\\'),
-                StringComparison.OrdinalIgnoreCase)
+        // exe 就摆在游戏根目录下，而且不是商店托管的目录：
+        // 说明这个目录本身就是游戏目录，ChooseName 已经在「目录名 vs exe 名」之间做过取舍，
+        // 这里再覆盖一次只会把好不容易选对的 exe 名换回目录名。
+        var rootFull = Path.GetFullPath(gameRoot).TrimEnd('\\');
+        var exeFull = Path.GetFullPath(exeDir).TrimEnd('\\');
+        if (string.Equals(rootFull, exeFull, StringComparison.OrdinalIgnoreCase)
             && !IsStoreManagedGameRoot(gameRoot))
         {
             return candidate;
         }
 
-        var rootName = Path.GetFileName(gameRoot);
-        if (string.IsNullOrWhiteSpace(rootName))
+        var name = PickGameName(gameRoot, exeDir);
+        if (string.IsNullOrWhiteSpace(name)
+            || name.Equals(candidate.SuggestedName, StringComparison.Ordinal))
         {
             return candidate;
         }
@@ -463,8 +472,84 @@ public sealed class GameScanner
             FolderName = candidate.FolderName,
             SizeBytes = candidate.SizeBytes,
             ModifiedAt = candidate.ModifiedAt,
-            SuggestedName = rootName,
+            SuggestedName = name,
         };
+    }
+
+    /// <summary>
+    /// 挑出「这个 exe 属于哪款游戏」的显示名。
+    ///
+    /// 这里踩过一个坑：用户把游戏放在自己建的分类文件夹里，例如
+    ///   E:\Games\XIAORIZI\JAPANSTIGMATIZED\uuu.exe
+    /// 早先的实现把「游戏根目录」当成第一层子目录（XIAORIZI），再把名字无条件
+    /// 覆盖成根目录名，结果墙上显示的是 XIAORIZI 而不是 JAPANSTIGMATIZED ——
+    /// 名字错了，后面按名字匹配封面也就全废了。
+    ///
+    /// 现在的规则：
+    ///  - 商店托管的目录（steamapps\common\&lt;游戏&gt; 等）以商店目录名为准，
+    ///    因为 ...\A Pond Hunt Demo\PumpFish\Binaries\Win64\ 里最深那层叫 Win64，
+    ///    再往上是 Binaries / PumpFish，都不如商店名可信。
+    ///  - 其余情况从 exe 所在目录往上走，取**第一层不是通用容器名的目录**
+    ///    （bin / win64 / binaries / game 这类不算），走到游戏根目录还没有就用根目录名。
+    /// </summary>
+    private static string PickGameName(string gameRoot, string exeDir)
+    {
+        var identity = PickGameIdentity(gameRoot, exeDir);
+        return identity.Name;
+    }
+
+    /// <summary>
+    /// 同 <see cref="PickGameName"/>，但同时给出承载这个名字的目录。
+    ///
+    /// 目录有两个用途：
+    ///  1. 当归并键 —— 同一款游戏的多个 exe 必须落到同一张卡片上；
+    ///  2. 后面按名字去 Steam 库里模糊匹配封面时，用它当第二判据。
+    /// </summary>
+    private static (string Name, string Dir) PickGameIdentity(string gameRoot, string exeDir)
+    {
+        var rootFull = Path.GetFullPath(gameRoot).TrimEnd('\\');
+        var rootName = Path.GetFileName(rootFull);
+
+        if (IsStoreManagedGameRoot(gameRoot))
+        {
+            return (rootName, rootFull);
+        }
+
+        var current = Path.GetFullPath(exeDir).TrimEnd('\\');
+
+        // 从最深处往上走，最多走到游戏根目录为止
+        for (var guard = 0; guard < 8; guard++)
+        {
+            if (current.Length < rootFull.Length
+                || !current.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+
+            var name = Path.GetFileName(current);
+            if (!string.IsNullOrWhiteSpace(name)
+                && !string.Equals(current, rootFull, StringComparison.OrdinalIgnoreCase)
+                && !RedundantFolderNames.Contains(name.ToLowerInvariant())
+                && !ClientSubDirNames.Contains(name.ToLowerInvariant()))
+            {
+                return (name, current);
+            }
+
+            if (string.Equals(current, rootFull, StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+
+            var parent = Path.GetDirectoryName(current);
+            if (string.IsNullOrEmpty(parent))
+            {
+                break;
+            }
+
+            current = parent.TrimEnd('\\');
+        }
+
+        return (rootName, rootFull);
     }
 
     /// <summary>
@@ -801,10 +886,16 @@ public sealed class GameScanner
     private static string ChooseName(string exeBaseName, string folderName)
     {
         if (string.IsNullOrWhiteSpace(folderName)
-            || RedundantFolderNames.Contains(folderName.ToLowerInvariant())
-            || folderName.Equals(exeBaseName, StringComparison.OrdinalIgnoreCase))
+            || RedundantFolderNames.Contains(folderName.ToLowerInvariant()))
         {
             return exeBaseName;
+        }
+
+        // 两者只差大小写时用目录名 —— 玩家建目录时一般保留了官方写法
+        // （"Sekiro" 而不是 sekiro.exe 里的 sekiro），显示出来更像游戏名。
+        if (folderName.Equals(exeBaseName, StringComparison.OrdinalIgnoreCase))
+        {
+            return folderName;
         }
 
         // exe 名带版本号/后缀（如 Game-Win64-Shipping）时优先目录名
