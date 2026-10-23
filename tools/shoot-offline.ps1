@@ -10,7 +10,7 @@
 # 本地库只有两三个游戏时重拍会显得空，先用 tools/seed-demo.ps1 铺一批示例数据再拍。
 #
 # 用法：
-#   .\tools\shoot-offline.ps1              # 全套 18 张覆盖到 docs/screenshots
+#   .\tools\shoot-offline.ps1              # 全套 16 张覆盖到 docs/screenshots
 #   .\tools\shoot-offline.ps1 -OutDir tmp  # 输出到别的目录先看效果
 #   .\tools\shoot-offline.ps1 -DarkOnly    # 只出深色那 9 张
 
@@ -64,8 +64,6 @@ if (-not $DarkOnly) {
         "light-dialog-settings:settings:Light",
         "light-dialog-tidy:tidy:Light",
         "light-dialog-toolbox:toolbox:Light:hardware",
-        "light-dialog-toolbox-opt:toolbox:Light:游戏性能",
-        "light-dialog-toolbox-power:toolbox:Light:power",
         "light-dialog-log:log:Light",
         "light-firstrun:firstrun:Light"
     )

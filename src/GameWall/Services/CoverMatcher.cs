@@ -145,10 +145,10 @@ public static class CoverMatcher
             return null;
         }
 
-        // 先把 exe 目录往上 4 层收集起来（含自身），再从外往里挑最合适的那一层
+        // 先把 exe 目录往上 6 层收集起来（含自身），再挑最合适的那一层
         var chain = new List<string>();
         var current = dir!;
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < 6; i++)
         {
             chain.Add(current);
 
@@ -175,19 +175,59 @@ public static class CoverMatcher
             }
         }
 
-        // 退一步：取「最外层」那个像游戏目录的层。
-        // 取最外层而不是最内层，是因为封面图通常放在游戏根目录，
-        // 而 Binaries\Win64 这种内层目录里什么图都没有。
-        // 盘符根一律不参与判断。
-        for (var i = chain.Count - 1; i >= 0; i--)
+        // 从内往外爬，跳过 Game / Bin / Win64 / Data 这类「结构性」目录，
+        // 第一个叫得上名字的层就是游戏安装根。
+        //
+        // 这里曾经取的是「最外层那个像游戏目录的层」，结果《英雄联盟》的
+        // exe 在 <游戏>\Game\ 下，往上爬到 E:\WeGameApps 时，因为那层下面
+        // 恰好有个叫 Game 的子目录，被误判成"这就是游戏根" —— 于是在整个
+        // WeGameApps 里翻封面，永远找不到，卡片就只剩一个图标。
+        // 现在改成「跳掉通用目录名」，<游戏>\Game 里的 Game 会被跳过，
+        // 停在 <游戏> 这一层。
+        foreach (var level in chain)
         {
-            if (!IsDriveRoot(chain[i]) && LooksLikeGameRoot(chain[i]))
+            if (IsDriveRoot(level) || IsGenericLayer(level))
             {
-                return chain[i];
+                continue;
             }
+
+            return level;
         }
 
         return dir;
+    }
+
+    /// <summary>
+    /// 这些目录名只表示「程序放在哪一级」，不表示游戏叫什么。
+    /// 往上找安装根时要跳过它们，否则会把 exe 所在的 bin\win64 当成游戏目录。
+    /// </summary>
+    private static readonly string[] GenericLayers =
+    {
+        "game", "games", "bin", "bin32", "bin64", "binaries", "win32", "win64",
+        "x86", "x64", "system", "syswow64", "data", "content", "engine",
+        "release", "retail", "shipping", "build", "app", "application",
+        "client", "launcher", "launchers", "cross", "tcls", "tft",
+        "wegamelauncher", "rail", "rail_apps", "common", "common_apps",
+        "steamapps", "source", "binaries64",
+    };
+
+    private static bool IsGenericLayer(string dir)
+    {
+        var name = System.IO.Path.GetFileName(dir.TrimEnd('\\', '/'));
+        if (string.IsNullOrEmpty(name))
+        {
+            return false;
+        }
+
+        foreach (var generic in GenericLayers)
+        {
+            if (name.Equals(generic, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool HasSteamAppId(string dir)
@@ -269,18 +309,18 @@ public static class CoverMatcher
 
                     var stem = System.IO.Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
 
-                    // 文件名必须命中白名单词根，避免把贴图碎片当封面
+                    // 白名单词根命中最好，命中不了也还有「大图兜底」这一档
                     var rank = Array.FindIndex(LocalCoverStems, s => stem == s);
-                    if (rank < 0)
+                    var named = rank >= 0;
+                    if (!named)
                     {
                         rank = Array.FindIndex(LocalCoverStems, s => stem.StartsWith(s, StringComparison.Ordinal));
-                        if (rank < 0)
+                        if (rank >= 0)
                         {
-                            continue;
+                            // 前缀式命中权重低一档
+                            rank += LocalCoverStems.Length;
+                            named = true;
                         }
-
-                        // 前缀式命中权重低一档
-                        rank += LocalCoverStems.Length;
                     }
 
                     long size;
@@ -296,6 +336,20 @@ public static class CoverMatcher
                     if (size <= 0)
                     {
                         continue;
+                    }
+
+                    // 名字没命中白名单时，只认「够大、够方正」的图当兜底候选。
+                    // 背景墙纸 / 登录页 / 关卡插画这类图在国产客户端里通常叫
+                    // bg.png、login_page.jpg、ad_login41.png，名字毫无规律，
+                    // 但尺寸和体积摆在那里 —— 拿它们当封面远好过一个字母标牌。
+                    if (!named)
+                    {
+                        if (size < 150 * 1024)
+                        {
+                            continue;
+                        }
+
+                        rank = LocalCoverStems.Length * 3;
                     }
 
                     // 只看字节数不够可靠：一张 600×900 的纯色封面完全可能只有 5 KB，

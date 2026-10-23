@@ -136,7 +136,13 @@ Windows 游戏封面墙 · 单文件绿色版，双击即用，数据全在本�
 
 ### 列表式视图
 
-![列表式](docs/screenshots/dark-list.png)
+深色：
+
+![列表式·深色](docs/screenshots/dark-list.png)
+
+浅色：
+
+![列表式·浅色](docs/screenshots/light-list.png)
 
 ### 设置面板
 
@@ -172,6 +178,10 @@ Windows 游戏封面墙 · 单文件绿色版，双击即用，数据全在本�
 
 ![游戏工具箱·电源](docs/screenshots/dark-dialog-toolbox-power.png)
 
+浅色（硬件信息页）：
+
+![游戏工具箱·浅色](docs/screenshots/light-dialog-toolbox.png)
+
 ### 运行日志
 
 遇到扫描漏了游戏、封面不对、启动失败，不用猜——打开日志窗口就能看到刚才发生了什么，
@@ -187,7 +197,13 @@ Windows 游戏封面墙 · 单文件绿色版，双击即用，数据全在本�
 
 ### 首次运行引导
 
-![首次运行](docs/screenshots/dark-firstrun.png)
+深色：
+
+![首次运行·深色](docs/screenshots/dark-firstrun.png)
+
+浅色：
+
+![首次运行·浅色](docs/screenshots/light-firstrun.png)
 
 > 截图由 `tools/make-screenshots.ps1` / `tools/shoot-theme.ps1` 在线抓取，
 > 也可用离线宿主 `snap-host` 直接 `RenderTargetBitmap` 渲染（远程桌面 / 无桌面合成环境下更可靠）。
@@ -276,7 +292,10 @@ python tools/make-logo.py
 - **名字取游戏自己的目录名，不取自建文件夹名**：你把游戏放在 `D:\Games\XIAORIZI\JAPANSTIGMATIZED\` 这种自己起的分类夹里时，
   显示的是 `JAPANSTIGMATIZED` 而不是 `XIAORIZI`——自建文件夹是分类，不是游戏名，用它去找封面永远对不上
 - **自动配封面**：扫描完成时按五条线索找图，找到就存进 `%AppData%\GameWall\covers\`：
-  1. 游戏目录里自带的 `cover.png` / `folder.jpg` / `poster.*` 之类（按文件名和像素尺寸挑，太小的图标会被排除）
+  1. 游戏目录里自带的封面图：先按 `cover.png` / `folder.jpg` / `poster.*` 这类常见文件名找；
+     名字对不上时再按体积兜底 —— 大于 150KB 的大图也收（`bg.png`、`login_page.jpg`、`ad_login41.png`
+     这类国产客户端的登录页 / 宣传插画名字毫无规律，但拿它当封面远好过一个字母标牌）。
+     两种都要过像素尺寸校验（最短边 ≥200、长宽比 ≤2.6），16×16 的图标不会被误当成封面
   2. 目录里的 `steam_appid.txt` → 直接用该 appid 去 Steam 取官方竖版封面
   3. 按游戏名和本机 Steam 库里的游戏做模糊匹配（中英对照、简称全称都能认，比如「英雄联盟微game版」↔「英雄联盟」）
   4. 都没有就去 Steam 商店按名字搜一次（本机没装这款 Steam 游戏时的兜底，
@@ -634,6 +653,7 @@ Steam 只在你打开过商店页之后才把封面缓存到本地，新装的�
 [x] 1.0.17 运行日志、官方中文名、圆角选中描边、破解版扫描
 [x] 1.0.18 封面 CDN 兜底、中英混排名去尾、扫描明细日志
 [x] 1.0.19 商店搜封面兜底、同游戏组件不再拆卡、版本号常驻与 NEW 角标
+[x] 1.0.20 WeGame / 国产客户端封面修复：目录定位不再被同名 Game 子目录带偏、大图兜底
 ```
 
 ## 关于作者

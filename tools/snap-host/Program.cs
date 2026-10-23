@@ -90,7 +90,6 @@ namespace SnapHost
 
             var vm = win.ViewModel;
             vm.Settings.Theme = theme;
-            SwapTheme(theme);
             vm.ViewMode = view == "List"
                 ? GameWall.Models.WallViewMode.List
                 : GameWall.Models.WallViewMode.Card;
@@ -105,6 +104,12 @@ namespace SnapHost
             }
 
             Pump(win.Dispatcher, 6);
+
+            // 主题必须放在最后一次 Pump 之后换：MainWindow.OnLoaded 里会
+            // ThemeManager.ApplyAll 按 settings.Theme 重新应用一遍，
+            // 提前换会被它覆盖回去（表现就是深浅两套图 md5 完全相同）。
+            SwapTheme(theme);
+            Pump(win.Dispatcher, 2);
 
             Console.WriteLine("  view=" + vm.ViewMode + " cards=" + vm.Cards.Count + " theme=" + vm.Settings.Theme);
             Save(win, path);
@@ -189,12 +194,27 @@ namespace SnapHost
         /// 这种 URI 会在「入口程序集」里找资源 —— 截图宿主是 SnapHost.exe，
         /// 而主题字典编译在 GameWall.dll 里，必须显式带上程序集名才能找到。
         /// </summary>
+        private static ResourceDictionary? _themeDict;
+
         private static void SwapTheme(string theme)
         {
             var name = theme == "Light" ? "Light" : "Dark";
-            var uri = new Uri("pack://application:,,,/GameWall;component/Themes/" + name + ".xaml", UriKind.Absolute);
-            var dict = new ResourceDictionary { Source = uri };
+
+            // 用 Application.LoadComponent 而不是 new ResourceDictionary { Source = uri }：
+            // 后者在 .NET Core 下会走 WebRequest.Create，而 pack:// 这个 scheme
+            // 在宿主进程里没被注册，直接抛 “The URI prefix is not recognized”。
+            // LoadComponent 只接受「相对」URI，所以这里写成 /程序集;component/路径 的形式。
+            var uri = new Uri("/GameWall;component/Themes/" + name + ".xaml", UriKind.Relative);
+            var dict = (ResourceDictionary)Application.LoadComponent(uri);
             var app = Application.Current;
+
+            // LoadComponent 出来的字典 Source 是 null，靠 Source 字符串匹配不到自己插进去的那份，
+            // 所以用静态字段记着实例，下次先把它摘掉，再摘掉 App.xaml 里带 Source 的原生那份。
+            if (_themeDict is not null)
+            {
+                app.Resources.MergedDictionaries.Remove(_themeDict);
+            }
+
             for (var i = app.Resources.MergedDictionaries.Count - 1; i >= 0; i--)
             {
                 var src = app.Resources.MergedDictionaries[i].Source?.OriginalString ?? string.Empty;
@@ -204,7 +224,9 @@ namespace SnapHost
                     app.Resources.MergedDictionaries.RemoveAt(i);
                 }
             }
+
             app.Resources.MergedDictionaries.Insert(0, dict);
+            _themeDict = dict;
         }
 
         private static void SelectNav(Window window, string key)

@@ -24,9 +24,9 @@
     <Copyright>© 2026 季春二九 (jichun29). MIT License.</Copyright>
     <RepositoryUrl>https://github.com/jichun29/GameWall-Launcher</RepositoryUrl>
     <PackageProjectUrl>https://github.com/jichun29/GameWall-Launcher</PackageProjectUrl>
-    <Version>1.0.19</Version>
-    <FileVersion>1.0.19.0</FileVersion>
-    <InformationalVersion>1.0.19</InformationalVersion>
+    <Version>1.0.20</Version>
+    <FileVersion>1.0.20.0</FileVersion>
+    <InformationalVersion>1.0.20</InformationalVersion>
     <!--
       单文件发布参数（dotnet publish 时生效）。
       SelfContained=true 表示把 .NET 运行时一起打进去，用户机器不需要预装 .NET，双击即用。
