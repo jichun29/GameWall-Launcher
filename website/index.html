@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<!-- 在渲染任何内容之前打上 js 标记：所有"先隐藏再入场"的样式都挂在 html.js 下，
+     脚本没跑或被执行环境拦掉时，页面退回完全可见的静态版，不会白屏。 -->
+<script>document.documentElement.className += ' js';</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GameWall · Windows 游戏封面墙</title>
+<meta name="description" content="GameWall 是一款 Windows 游戏封面墙启动器：单文件绿色版，双击即用，自动扫描本地游戏并抓取官方封面。数据全在本机，无埋点、无账号，附游戏工具箱与 54 项系统优化。">
+<meta name="keywords" content="GameWall,游戏封面墙,Windows游戏启动器,游戏管理,绿色版,单文件,游戏工具箱">
+<meta name="author" content="季春二九">
+<meta name="theme-color" content="#05070A">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="GameWall · Windows 游戏封面墙">
+<meta property="og:description" content="单文件绿色版游戏封面墙，自动扫描本地游戏、抓取官方封面。数据全在本机，无埋点。">
+<meta property="og:url" content="https://game.jichun29.cn/">
+<meta property="og:image" content="https://game.jichun29.cn/assets/shots/dark-card.jpg">
+
+<link rel="icon" href="assets/img/logo-256.png">
+<link rel="apple-touch-icon" href="assets/img/logo-256.png">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/page.css">
+</head>
+<body>
+
+<!-- 背景层 -->
+<canvas id="starfield"></canvas>
+<div class="grid-overlay"></div>
+<div class="noise"></div>
+
+<!-- ══════════════════ 导航 ══════════════════ -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <a href="#" class="brand">
+      <img src="assets/img/logo-256.png" alt="GameWall">
+      <span>GameWall</span>
+      <span class="ver">v1.0.22</span>
+    </a>
+    <div class="nav-links">
+      <a href="#features">功能</a>
+      <a href="#shots">界面</a>
+      <a href="#toolbox">工具箱</a>
+      <a href="#privacy">隐私</a>
+      <a href="#faq">常见问题</a>
+    </div>
+    <a href="#download" class="nav-cta">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 19h16"/>
+      </svg>
+      下载
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M4 7h16M4 12h16M4 17h16"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- 移动端展开菜单：桌面端隐藏，只在窄屏由汉堡按钮唤起 -->
+  <div class="nav-drawer" id="navDrawer">
+    <a href="#features">功能</a>
+    <a href="#shots">界面</a>
+    <a href="#toolbox">工具箱</a>
+    <a href="#privacy">隐私</a>
+    <a href="#faq">常见问题</a>
+    <a href="#download">下载</a>
+  </div>
+</nav>
+
+<!-- ══════════════════ Hero ══════════════════ -->
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+
+      <div class="hero-copy">
+        <div class="hero-badge">
+          <span class="dot"></span>
+          单文件绿色版 · 免安装 · 全离线可用
+        </div>
+
+        <h1>
+          <span class="line"><span>把你的游戏</span></span>
+          <span class="line"><span>摆成一面</span></span>
+          <span class="line"><span class="grad-cyan">封面墙</span></span>
+        </h1>
+
+        <p class="hero-desc">
+          自动扫描本地游戏，剔除平台本体与运行库，
+          按 appid 抓取 Steam 官方封面。
+          <strong>双击即玩，数据一个字节都不出本机。</strong>
+        </p>
+
+        <div class="hero-actions">
+          <a href="#download" class="btn btn-primary">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 19h16"/>
+            </svg>
+            立即下载
+          </a>
+          <a href="https://github.com/jichun29/GameWall-Launcher" target="_blank" rel="noopener" class="btn btn-ghost">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 .3a12 12 0 00-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2 0 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 016 0C17.3 4.7 18.3 5 18.3 5c.6 1.7.1 2.9.1 3.2.7.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0012 .3z"/>
+            </svg>
+            GitHub
+          </a>
+        </div>
+
+        <div class="hero-meta">
+          <span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+            Windows 10 / 11 · x64
+          </span>
+          <span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+            无需安装 .NET 运行时
+          </span>
+          <span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+            MIT 开源
+          </span>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="app-window" id="heroWindow">
+          <div class="app-titlebar">
+            <span class="tb-dot r"></span>
+            <span class="tb-dot y"></span>
+            <span class="tb-dot g"></span>
+            <span class="tb-title">GameWall — 游戏墙</span>
+          </div>
+          <img src="assets/shots/dark-card.jpg" alt="GameWall 游戏墙界面">
+        </div>
+
+        <div class="float-chip a">
+          <span class="chip-ico cyan">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+          </span>
+          <span>
+            <span class="chip-val">1 秒</span>
+            <span class="chip-lab">启动耗时</span>
+          </span>
+        </div>
+
+        <div class="float-chip b">
+          <span class="chip-ico mint">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </span>
+          <span>
+            <span class="chip-val">零上传</span>
+            <span class="chip-lab">数据全在本机</span>
+          </span>
+        </div>
+
+        <div class="float-chip c">
+          <span class="chip-ico amber">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+              <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+              <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+              <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+            </svg>
+          </span>
+          <span>
+            <span class="chip-val">200 款</span>
+            <span class="chip-lab">依旧流畅</span>
+          </span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="scroll-hint">
+    <span class="mouse"></span>
+    SCROLL
+  </div>
+</header>
+
+<!-- ══════════════════ 数据条 ══════════════════ -->
+<section class="stats" style="padding:0">
+  <div class="wrap">
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-num cyan" data-count="54">54</div>
+        <div class="stat-lab">项系统优化</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" data-count="6" data-suffix=" 类">6 类</div>
+        <div class="stat-lab">工具箱分类</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num amber" data-count="4" data-suffix=" 种">4 种</div>
+        <div class="stat-lab">添加游戏方式</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" data-count="0" data-text="零">零</div>
+        <div class="stat-lab">埋点 / 上传 / 账号</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 功能 ══════════════════ -->
+<section id="features">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <div class="eyebrow">核心能力</div>
+      <h2 class="section-title">不只是<span class="grad-cyan">壁纸</span>，是真的能启动游戏</h2>
+      <p class="section-lead">
+        Playnite 那类工具越堆越重，GameWall 走的是另一条路：
+        一个 exe，双击就开，该有的都有，不该有的一个不来。
+      </p>
+    </div>
+
+    <div class="feature-grid">
+
+      <article class="f-card reveal">
+        <div class="f-ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="M20 20l-3.5-3.5"/>
+          </svg>
+        </div>
+        <h3>智能扫描</h3>
+        <p>自动剔除平台本体、启动器、运行库和反作弊组件。同一游戏有多个 exe 时，按「目录说谎度 → 深度 → 体积」三档打分，只留主程序。</p>
+      </article>
+
+      <article class="f-card reveal">
+        <div class="f-ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="2.5"/>
+            <path d="M3 9h18M8 4v5"/>
+          </svg>
+        </div>
+        <h3>官方封面</h3>
+        <p>先读 Steam 本地 <code>librarycache</code> 缓存，没有就用 appid 从 Steam CDN 取 600×900 竖版封面。像素校验挡住 16×16 图标被当封面用。</p>
+      </article>
+
+      <article class="f-card mint reveal">
+        <div class="f-ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <h3>数据不出本机</h3>
+        <p>游戏库、设置、日志、硬件快照全部只写在 <code>%AppData%\GameWall\</code>。代码里没有任何上传接口，联网只有取封面和查更新两件事，都能关。</p>
+      </article>
+
+      <article class="f-card amber reveal">
+        <div class="f-ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 0118 0"/>
+            <path d="M3 12v4a2 2 0 002 2h1a1 1 0 001-1v-4a1 1 0 00-1-1H3z"/>
+            <path d="M21 12v4a2 2 0 01-2 2h-1a1 1 0 01-1-1v-4a1 1 0 011-1h3z"/>
+          </svg>
+        </div>
+        <h3>换机自动体检</h3>
+        <p>启动时核对全部路径，失效的在顶栏提示「有 N 个游戏的路径失效了」。点「去修复」按文件名与目录层级猜新位置，整个盘搬家还能选新根目录一次对上。</p>
+      </article>
+
+      <article class="f-card reveal">
+        <div class="f-ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 7V5a1 1 0 011-1h14a1 1 0 011 1v2"/>
+            <rect x="3" y="7" width="18" height="13" rx="2"/>
+            <path d="M7 12h4M7 16h7"/>
+          </svg>
+        </div>
+        <h3>桌面整理</h3>
+        <p>已收录的游戏，桌面快捷方式一次性挪走。全部移动到备份目录并写 <code>restore.json</code> 记录原始路径，随时一键还原。公共桌面一律不碰。</p>
+      </article>
+
+      <article class="f-card reveal">
+        <div class="f-ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2.5"/>
+            <path d="M8 10l3 3-3 3M13 16h4"/>
+          </svg>
+        </div>
+        <h3>四种添加方式</h3>
+        <p>手动选文件、从资源管理器拖进来、<code>Ctrl+V</code> 粘贴路径、输入名字递归搜索。也可以直接读 Steam / Epic / GOG 已安装列表。</p>
+      </article>
+
+      <article class="f-card reveal">
+        <div class="f-ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1-6.3-4.6L5.7 21 8 13.9 2 9.4h7.6z"/>
+          </svg>
+        </div>
+        <h3>标签与收藏</h3>
+        <p>多标签筛选、空格分词的多关键词 AND 搜索（名称 / 标签 / 备注 / 来源）、<code>★</code> 收藏夹。拖拽排序，顺序自动保存。</p>
+      </article>
+
+      <article class="f-card amber reveal">
+        <div class="f-ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 8v11a2 2 0 01-2 2H5a2 2 0 01-2-2V8"/>
+            <path d="M2 4h20v4H2zM10 12h4"/>
+          </svg>
+        </div>
+        <h3>库导出 / 导入</h3>
+        <p>一个 zip 打包游戏列表 + 封面 + 图标，通常几 MB。换电脑或重装系统直接导回来，不用重新扫一遍。</p>
+      </article>
+
+      <article class="f-card mint reveal">
+        <div class="f-ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 7v5l3.5 2"/>
+          </svg>
+        </div>
+        <h3>虚拟化渲染</h3>
+        <p>只实例化视口里的那几行卡片。实测 200 条游戏启动约 1 秒，和只有 6 条时首屏一样快。</p>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 界面截图 ══════════════════ -->
+<section id="shots">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <div class="eyebrow">界面预览</div>
+      <h2 class="section-title">都是程序<span class="grad-cyan">真实渲染</span>的画面</h2>
+      <p class="section-lead">
+        下面每一张都是 <code style="font-family:var(--mono);font-size:.92em;background:rgba(255,255,255,.06);padding:2px 7px;border-radius:4px;color:var(--cyan)">RenderTargetBitmap</code>
+        直接抓窗口视觉树得到的结果，不是拼的示意图。
+      </p>
+    </div>
+
+    <div class="shot-tabs reveal" id="shotTabs">
+      <button class="shot-tab active" data-shot="dark-card">卡片视图</button>
+      <button class="shot-tab" data-shot="dark-list">列表视图</button>
+      <button class="shot-tab" data-shot="dark-dialog-settings">设置面板</button>
+      <button class="shot-tab" data-shot="dark-dialog-toolbox">工具箱</button>
+      <button class="shot-tab" data-shot="dark-dialog-tidy">整理桌面</button>
+      <button class="shot-tab" data-shot="dark-dialog-log">运行日志</button>
+      <button class="shot-tab" data-shot="light-card">浅色主题</button>
+    </div>
+
+    <div class="shot-stage reveal">
+      <div class="stage-bar">
+        <span class="sdot"></span>
+        <span class="sdot"></span>
+        <span class="sdot"></span>
+        <span class="s-title" id="shotTitle">GameWall — 卡片式视图</span>
+      </div>
+      <div class="shot-frame" id="shotFrame">
+        <img loading="lazy" decoding="async" src="assets/shots/dark-card.jpg" alt="卡片视图" class="on" data-key="dark-card">
+        <img loading="lazy" decoding="async" src="assets/shots/dark-list.jpg" alt="列表视图" data-key="dark-list">
+        <img loading="lazy" decoding="async" src="assets/shots/dark-dialog-settings.png" alt="设置面板" data-key="dark-dialog-settings">
+        <img loading="lazy" decoding="async" src="assets/shots/dark-dialog-toolbox.png" alt="工具箱" data-key="dark-dialog-toolbox">
+        <img loading="lazy" decoding="async" src="assets/shots/dark-dialog-tidy.png" alt="整理桌面" data-key="dark-dialog-tidy">
+        <img loading="lazy" decoding="async" src="assets/shots/dark-dialog-log.png" alt="运行日志" data-key="dark-dialog-log">
+        <img loading="lazy" decoding="async" src="assets/shots/light-card.jpg" alt="浅色主题" data-key="light-card">
+      </div>
+    </div>
+
+    <p class="shot-caption" id="shotCaption">
+      <strong>卡片式视图</strong> — 2:3 竖版封面，悬停放大并浮起外发光，双击直接启动
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════ 工具箱 ══════════════════ -->
+<section id="toolbox">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">游戏工具箱</div>
+      <h2 class="section-title">顺手把机器也<span class="grad-amber">调一调</span></h2>
+      <p class="section-lead">
+        左栏分类，右侧整块只显示当前分类。每一项都会在写注册表之前把原值存进
+        <code style="font-family:var(--mono);font-size:.92em;background:rgba(255,255,255,.06);padding:2px 7px;border-radius:4px;color:var(--amber)">applied.json</code>，
+        「全部还原」一键撤回 —— 还原时不存在的值直接删掉，不会糊一个 0 上去。
+      </p>
+    </div>
+
+    <div class="toolbox-grid">
+      <div class="tools-list reveal">
+
+        <div class="tool-row">
+          <div class="tool-ico">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="5" width="14" height="14" rx="2"/>
+              <path d="M9 9h6v6H9zM2 9h3M2 15h3M19 9h3M19 15h3M9 2v3M15 2v3M9 19v3M15 19v3"/>
+            </svg>
+          </div>
+          <div class="tool-body">
+            <h4>硬件信息 <span class="tool-count">只读</span></h4>
+            <p>CPU / 主板与 BIOS / 内存 / 显卡 / 硬盘分区 / 显示器 / 网卡，全部走 Win32 与注册表，不装驱动、不联网</p>
+          </div>
+        </div>
+
+        <div class="tool-row">
+          <div class="tool-ico">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+          </div>
+          <div class="tool-body">
+            <h4>游戏性能 <span class="tool-count">10 项</span></h4>
+            <p>游戏模式、MMCSS 任务优先级、CPU 调度量子</p>
+          </div>
+        </div>
+
+        <div class="tool-row">
+          <div class="tool-ico">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="13" rx="2"/>
+              <path d="M8 21h8M12 17v4"/>
+            </svg>
+          </div>
+          <div class="tool-body">
+            <h4>图形与显示 <span class="tool-count">9 项</span></h4>
+            <p>硬件加速 GPU 调度、独显优先、Flip Model、Auto HDR / VRR、着色器缓存</p>
+          </div>
+        </div>
+
+        <div class="tool-row">
+          <div class="tool-ico">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4l6 16 2.5-6.5L19 11z"/>
+            </svg>
+          </div>
+          <div class="tool-body">
+            <h4>输入延迟 <span class="tool-count">6 项</span></h4>
+            <p>鼠标加速、键盘重复速率、菜单与悬停延迟</p>
+          </div>
+        </div>
+
+        <div class="tool-row">
+          <div class="tool-ico">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M3 12h18M12 3a15 15 0 010 18a15 15 0 010-18z"/>
+            </svg>
+          </div>
+          <div class="tool-body">
+            <h4>网络 <span class="tool-count">9 项</span></h4>
+            <p>网络限流、拥塞控制、TCP 超时与端口、DNS 缓存</p>
+          </div>
+        </div>
+
+        <div class="tool-row">
+          <div class="tool-ico">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+              <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+              <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+              <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+            </svg>
+          </div>
+          <div class="tool-body">
+            <h4>后台与系统 <span class="tool-count">13 项</span></h4>
+            <p>游戏 DVR / Game Bar / Xbox 服务、SysMain、搜索索引、NTFS 与音频</p>
+          </div>
+        </div>
+
+        <div class="tool-row">
+          <div class="tool-ico">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div class="tool-body">
+            <h4>隐私与广告 <span class="tool-count">7 项</span></h4>
+            <p>推荐内容、活动历史、Copilot、Recall、NVIDIA 遥测</p>
+          </div>
+        </div>
+
+        <div class="tool-row">
+          <div class="tool-ico">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v6M12 22v-4M4 12H2M22 12h-2M6.3 6.3L4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/>
+              <circle cx="12" cy="14" r="4"/>
+            </svg>
+          </div>
+          <div class="tool-body">
+            <h4>电源方案 <span class="tool-count">独立</span></h4>
+            <p>直接调 <code style="font-family:var(--mono);font-size:.9em">powrprof.dll</code> 枚举与切换，可一键复制「卓越性能」，不调 powercfg.exe</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="toolbox-visual reveal">
+        <div class="app-window">
+          <div class="app-titlebar">
+            <span class="tb-dot r"></span>
+            <span class="tb-dot y"></span>
+            <span class="tb-dot g"></span>
+            <span class="tb-title">GameWall — 工具箱 · 优化方案</span>
+          </div>
+          <img loading="lazy" decoding="async" src="assets/shots/dark-dialog-toolbox-opt.png" alt="游戏工具箱优化页">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 隐私 ══════════════════ -->
+<section id="privacy">
+  <div class="wrap">
+    <div class="privacy-wrap reveal">
+      <div class="privacy-head">
+        <div class="privacy-shield">
+          <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <div>
+          <h2>数据全在本机，<span style="color:var(--mint)">联网只有两件事</span></h2>
+          <p>
+            取封面、查更新。两件都能关。关掉之后<strong>完全离线可用</strong>，没有任何埋点、没有账号、没有统计上报。
+          </p>
+        </div>
+      </div>
+
+      <div class="privacy-rows">
+        <div class="p-row">
+          <div class="p-q">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>
+            </svg>
+            会上传我的游戏列表或硬件信息吗？
+          </div>
+          <div class="p-a"><span class="yes">不会。</span> 游戏库、设置、日志、硬件快照全部只写在 <code style="font-family:var(--mono);font-size:.9em">%AppData%\GameWall\</code>，代码里没有任何上传接口。</div>
+        </div>
+
+        <div class="p-row">
+          <div class="p-q">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>
+            </svg>
+            会不会偷偷联网？
+          </div>
+          <div class="p-a">只有两处：Steam 封面 CDN 取图，检查更新读 GitHub 公开版本号。两个开关都在设置里，关掉即离线。</div>
+        </div>
+
+        <div class="p-row">
+          <div class="p-q">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>
+            </svg>
+            要登录账号吗？
+          </div>
+          <div class="p-a"><span class="yes">不需要。</span> 平台导入只读本机已生成的清单文件，不碰你的账号密码，也不调平台 API。</div>
+        </div>
+
+        <div class="p-row">
+          <div class="p-q">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>
+            </svg>
+            改注册表会不会把系统搞坏？
+          </div>
+          <div class="p-a">每个值都是<span class="yes">先记旧值再写</span>，备份在 <code style="font-family:var(--mono);font-size:.9em">tweaks\applied.json</code>。「全部还原」一键撤回，高风险项默认隐藏。</div>
+        </div>
+
+        <div class="p-row">
+          <div class="p-q">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>
+            </svg>
+            会不会删我的游戏或快捷方式？
+          </div>
+          <div class="p-a"><span class="yes">不会删任何文件。</span> 桌面整理是「移动到备份目录」，<code style="font-family:var(--mono);font-size:.9em">restore.json</code> 记着原始路径，随时还原。</div>
+        </div>
+
+        <div class="p-row">
+          <div class="p-q">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>
+            </svg>
+            怎么确认下载的 exe 没被替换？
+          </div>
+          <div class="p-a">程序内置校验：下载时先比文件大小、再比 SHA256（取自 GitHub API 的 asset digest，非页面上的文本文件）。每个 Release 同时附 <code style="font-family:var(--mono);font-size:.9em">SHA256SUMS.txt</code> 供手动核对。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 下载 ══════════════════ -->
+<section id="download">
+  <div class="wrap">
+    <div class="dl-wrap reveal">
+      <div class="dl-inner">
+        <img src="assets/img/logo-256.png" alt="GameWall" class="dl-logo">
+        <h2>拿一份，双击就能用</h2>
+        <p class="sub">自包含单文件，目标机不需要预装 .NET 运行时</p>
+
+        <div class="dl-versions">
+          <div class="dl-v">
+            <div class="v-top">
+              <span class="v-name">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 8v11a2 2 0 01-2 2H5a2 2 0 01-2-2V8"/><path d="M2 4h20v4H2z"/>
+                </svg>
+                安装版
+              </span>
+              <span class="v-tag">推荐</span>
+            </div>
+            <p class="v-desc">默认装到非系统盘，可选桌面快捷方式，可从系统设置正常卸载</p>
+          </div>
+
+          <div class="dl-v">
+            <div class="v-top">
+              <span class="v-name">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 19h16"/>
+                </svg>
+                免安装版
+              </span>
+              <span class="v-tag plain">绿色</span>
+            </div>
+            <p class="v-desc">单个 exe 丢到任意目录双击即用，不写系统目录</p>
+          </div>
+        </div>
+
+        <div class="dl-actions">
+          <a href="https://github.com/jichun29/GameWall-Launcher/releases/latest" target="_blank" rel="noopener" class="btn btn-primary" style="height:54px;padding:0 34px;font-size:15.5px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 19h16"/>
+            </svg>
+            前往下载 v1.0.22
+          </a>
+          <a href="https://github.com/jichun29/GameWall-Launcher/releases" target="_blank" rel="noopener" class="btn btn-ghost" style="height:54px;padding:0 28px">
+            全部版本与校验值
+          </a>
+        </div>
+
+        <div class="dl-specs">
+          <span class="s">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+            </svg>
+            Windows 10 1809+ / 11 · x64
+          </span>
+          <span class="s">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 8v11a2 2 0 01-2 2H5a2 2 0 01-2-2V8"/><path d="M2 4h20v4H2z"/>
+            </svg>
+            单文件约 66 MB
+          </span>
+          <span class="s">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            MIT 开源
+          </span>
+          <span class="s">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+            无运行库依赖
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ FAQ ══════════════════ -->
+<section id="faq">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <div class="eyebrow">常见问题</div>
+      <h2 class="section-title">你可能想问的</h2>
+    </div>
+
+    <div class="faq-list reveal" id="faqList">
+
+      <div class="faq-item">
+        <button class="faq-q">
+          扫描漏了游戏 / 扫出来是错的 exe，怎么办？
+          <span class="faq-arrow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          先打开「运行日志」窗口看扫描过程，那里会写清每个 exe 为什么被排除。如果确认是规则问题，可以在「编辑信息」里手动指定主程序，并把目录名反馈到 Issues —— 目录名噪声清洗的规则就是靠这类反馈不断补的。
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">
+          单文件版第一次启动要 2 秒，正常吗？
+          <span class="faq-arrow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          正常。自包含单文件首次运行会把 .NET 运行时解压到临时目录，大约 2 秒；之后每次启动稳定在 1 秒以内。想彻底避免这一步可以用框架依赖版（仅 380 KB），但目标机需要装 .NET 8 Desktop Runtime。
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">
+          优化项里的「网络」「输入延迟」真的有用吗？
+          <span class="faq-arrow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          要分开看。<strong>收益确定</strong>的是关鼠标加速、硬件加速 GPU 调度、独显优先这类；<strong>收益因机器而异</strong>的是网络相关的几项，现代 Windows 上多数影响很小。每一项都标了风险等级和实际效果，建议先用「推荐」预设，别一次全勾。改动前都会记旧值，不满意一键还原。
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">
+          换电脑后游戏路径全变了怎么办？
+          <span class="faq-arrow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          启动时程序会自动核对全部路径，顶栏提示「有 N 个游戏的路径失效了」。点「去修复」会按文件名 + 目录层级猜新位置并给出可信度评分，确认即可批量改好。整个目录搬到别的盘，还可以选新根目录一次性对上。
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">
+          卸载后我的游戏库还在吗？
+          <span class="faq-arrow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          在。卸载只删程序本身，<code>%AppData%\GameWall</code> 里的游戏库、封面、优化备份全部保留。重装后直接接着用。想主动清干净的话，删掉这个目录即可。
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">
+          会被杀毒软件或 SmartScreen 拦吗？
+          <span class="faq-arrow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          可能会。未做代码签名的单文件 exe 在首次下载运行时容易触发 SmartScreen 的「未知发布者」提示，这是 Windows 对未签名程序的通用策略，不代表文件有问题。可以先用 <code>Get-FileHash</code> 比对 Release 附带的 SHA256 值确认文件完整，再选择「仍要运行」。
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 页脚 ══════════════════ -->
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand">
+          <img src="assets/img/logo-256.png" alt="GameWall">
+          GameWall
+        </div>
+        <p class="footer-desc">
+          Windows 游戏封面墙 · 单文件绿色版。把散在各处的游戏收进一面墙，双击即玩。
+        </p>
+      </div>
+
+      <div class="footer-col">
+        <h5>产品</h5>
+        <a href="#features">功能特性</a>
+        <a href="#shots">界面预览</a>
+        <a href="#toolbox">游戏工具箱</a>
+        <a href="#download">下载</a>
+      </div>
+
+      <div class="footer-col">
+        <h5>资源</h5>
+        <a href="https://github.com/jichun29/GameWall-Launcher" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/jichun29/GameWall-Launcher/releases" target="_blank" rel="noopener">版本历史</a>
+        <a href="https://github.com/jichun29/GameWall-Launcher/issues" target="_blank" rel="noopener">问题反馈</a>
+        <a href="https://gitee.com/jichun29/GameWall-Launcher" target="_blank" rel="noopener">Gitee 镜像</a>
+      </div>
+
+      <div class="footer-col">
+        <h5>关于</h5>
+        <a href="https://jichun29.cn" target="_blank" rel="noopener">作者主页</a>
+        <a href="https://github.com/jichun29/GameWall-Launcher/blob/main/LICENSE" target="_blank" rel="noopener">MIT 许可证</a>
+        <a href="#privacy">隐私说明</a>
+        <a href="#faq">常见问题</a>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span>© 2026 GameWall · 季春二九 · 以 MIT 许可证开源</span>
+      <span class="fb-links">
+        <a href="https://github.com/jichun29/GameWall-Launcher" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://gitee.com/jichun29/GameWall-Launcher" target="_blank" rel="noopener">Gitee</a>
+        <a href="https://cnb.cool/jichun29/GameWall-Launcher" target="_blank" rel="noopener">CNB</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>
