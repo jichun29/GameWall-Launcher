@@ -142,11 +142,14 @@ if ($Record) {
     $exe = Join-Path $distDir 'GameWall.exe'
     if (-not (Test-Path $exe)) { throw "找不到 $exe，先跑一次 -Build" }
 
-    # 拿 dist 里 exe 的真实版本号，避免「-Record 单独跑时算出的 next 跟已发的对不上」
+    # 拿 dist 里 exe 的真实版本号，避免「-Record 单独跑时算出的 next 跟已发的对不上」。
+    # 注意：.NET 会把 InformationalVersion 拼成 "1.0.22+<commit sha>" 这种形式，
+    # 直接 split('.') 会得到 "22+ba18979..." 这种脏值，所以先用正则只取 x.y.z。
     $recordVersion = $next
     $fileVersion = (Get-Item $exe).VersionInfo.ProductVersion
     if ($fileVersion) {
-        $recordVersion = ($fileVersion -split '\.')[0..2] -join '.'
+        $vm = [regex]::Match($fileVersion, '^(\d+\.\d+\.\d+)')
+        if ($vm.Success) { $recordVersion = $vm.Groups[1].Value }
     }
 
     if ($entries.Count -gt 0 -and $entries[-1].version -eq $recordVersion) {
