@@ -64,12 +64,15 @@ function First-CardTitle($cards) {
         [System.Windows.Automation.ControlType]::Text)
     $texts = $cards[0].FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)
 
-    # 卡片里的 Text 按树顺序是：★ / 游戏名 / 副标题 / 标签。
-    # 第一个「★」是收藏角标，跳过它之后第一个非空的就是游戏名。
+    # 卡片里的 Text 按树顺序是：角标（★ 收藏 / 文件缺失）/ 游戏名 / 副标题 / 标签。
+    # 角标是浮在左上角的 Overlay，在视觉树上排在游戏名前面，
+    # 所以这里要跳过所有角标文案，第一个剩下的非空文本才是游戏名。
+    # 注意：以后再加新角标，记得往 $badges 里补一条，否则这条断言会取错标题。
+    $badges = @("★", "文件缺失")
     foreach ($t in $texts) {
         $name = $t.Current.Name
         if ([string]::IsNullOrWhiteSpace($name)) { continue }
-        if ($name -eq "★") { continue }
+        if ($badges -contains $name) { continue }
         return $name
     }
     return ""
@@ -136,6 +139,40 @@ $tp.Toggle()
 Start-Sleep -Milliseconds 900
 if ((Get-Cards).Count -ne $total) { Fail "取消收藏筛选后应恢复 $total" }
 Ok "取消收藏筛选恢复 $total 张"
+
+# ── 失效路径提示条 ──────────────────────────────────────
+# 提示条是后台算完之后才出现的（首屏刻意不阻塞），所以这里轮询等它，
+# 而不是固定 sleep 一个数字——机器慢的时候固定值会误报。
+# 判断口径：库里只要还有 LaunchKind=Executable 且 exe 不存在的卡片，
+# 提示条就该出现；全都正常时它不该出现。这个断言两种场景都成立。
+$exeGames = @()
+$libPath = Join-Path $env:APPDATA 'GameWall\library.json'
+if (Test-Path $libPath) {
+    $lib = Get-Content $libPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $exeGames = @($lib | Where-Object {
+        $_.LaunchKind -eq 'Executable' -and $_.ExecutablePath -and
+        -not (Test-Path -LiteralPath $_.ExecutablePath)
+    })
+}
+
+$bannerText = ""
+for ($i = 0; $i -lt 40; $i++) {
+    $hit = $root.FindFirst(
+        [System.Windows.Automation.TreeScope]::Descendants,
+        (New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            "去修复")))
+    if ($hit) { $bannerText = "去修复"; break }
+    Start-Sleep -Milliseconds 150
+}
+
+if ($exeGames.Count -gt 0) {
+    if (-not $bannerText) { Fail "有 $($exeGames.Count) 个 exe 路径失效，但顶栏没出现提示条" }
+    Ok "路径失效提示条已出现（$($exeGames.Count) 个失效）"
+} else {
+    if ($bannerText) { Fail "所有路径都正常，提示条不该出现" }
+    Ok "路径全部正常，无失效提示"
+}
 
 Write-Host ""
 Write-Host "全部通过" -ForegroundColor Green
