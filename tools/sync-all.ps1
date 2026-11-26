@@ -252,10 +252,42 @@ foreach ($key in $Only) {
         Write-Host ("  {0,-7} OK      {1}" -f $p.Name, $p.Web) -ForegroundColor Green
         $results += [pscustomobject]@{ Name = $p.Name; State = 'OK'; Note = '' }
     } else {
-        Write-Host ("  {0,-7} 失败" -f $p.Name) -ForegroundColor Red
-        $out | Where-Object { $_ -and $_ -notmatch '^\s*$' } |
-            Select-Object -First 6 | ForEach-Object { Write-Host "          $_" -ForegroundColor DarkRed }
-        $results += [pscustomobject]@{ Name = $p.Name; State = '失败'; Note = ($out -join ' ').Trim() }
+        # push 报错不等于没推上去：网络在握手阶段断了，但服务端可能早就收到并落库了。
+        # 这种误报很讨厌 —— 明明同步好了却报红，逼着人去手工核实。
+        # 所以失败后先问一次远端 HEAD，跟本地一致就算成功。
+        $remoteSha = $null
+        try {
+            $savedEap2 = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            $lsArgs = @('-c', 'http.proxy=', '-c', 'https.proxy=') + $cred.AuthArgs
+            $lsOut = & git @lsArgs ls-remote $p.Remote "refs/heads/$Branch" 2>&1
+            $ErrorActionPreference = $savedEap2
+
+            $headSha = (& git rev-parse HEAD).Trim()
+            foreach ($line in $lsOut) {
+                if ($line -match '^([0-9a-f]{40})\s') {
+                    $remoteSha = $Matches[1]
+                    if ($remoteSha -eq $headSha) { $code = 0 }
+                    break
+                }
+            }
+        } catch {
+            # 核实不了就按失败报，别假装成功
+        }
+
+        if ($code -eq 0) {
+            Write-Host ("  {0,-7} OK      {1}" -f $p.Name, $p.Web) -ForegroundColor Green
+            Write-Host "          （推送时连接断了，但核对远端已是同一提交，内容一致）" -ForegroundColor DarkGray
+            $results += [pscustomobject]@{ Name = $p.Name; State = 'OK'; Note = '断线但已同步' }
+        } else {
+            Write-Host ("  {0,-7} 失败" -f $p.Name) -ForegroundColor Red
+            if ($remoteSha) {
+                Write-Host ("          远端 HEAD: $($remoteSha.Substring(0,7))，和本地不一致") -ForegroundColor DarkYellow
+            }
+            $out | Where-Object { $_ -and $_ -notmatch '^\s*$' } |
+                Select-Object -First 6 | ForEach-Object { Write-Host "          $_" -ForegroundColor DarkRed }
+            $results += [pscustomobject]@{ Name = $p.Name; State = '失败'; Note = ($out -join ' ').Trim() }
+        }
     }
 }
 
