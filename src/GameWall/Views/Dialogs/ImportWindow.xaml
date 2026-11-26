@@ -42,6 +42,20 @@
             <StackPanel Grid.Row="1" Margin="26,0,26,16">
                 <TextBlock Style="{StaticResource Text.Subtitle}" TextWrapping="Wrap" LineHeight="20"
                            Text="读取本机 Steam / Epic / GOG 的已安装列表。只会读取安装目录和游戏名，不会登录你的账号，也不会联网。" />
+
+                <!-- 平台读取状态：哪个平台没读到、为什么、下一步做什么，直接写在这儿 -->
+                <Border x:Name="StatusPanel" Margin="0,12,0,0" CornerRadius="10" Padding="14,12"
+                        Background="{DynamicResource Brush.SurfaceAlt}"
+                        BorderBrush="{DynamicResource Brush.BorderSoft}"
+                        BorderThickness="1"
+                        Visibility="Collapsed">
+                    <!-- 三个平台都不正常时内容会撑高，给个上限让它自己滚，别把下面的列表挤没 -->
+                    <ScrollViewer Style="{StaticResource ScrollViewer.Clean}" MaxHeight="98"
+                                  VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="StatusList" />
+                    </ScrollViewer>
+                </Border>
+
                 <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                     <Button Content="全选" Click="SelectAll_Click" Margin="0,0,10,0" />
                     <Button Content="全不选" Click="SelectNone_Click" Margin="0,0,10,0" />

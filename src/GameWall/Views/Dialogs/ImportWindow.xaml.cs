@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using GameWall.Services;
 using GameWall.ViewModels;
 
@@ -30,10 +32,14 @@ public partial class ImportWindow : Window
     private void LoadPlatforms()
     {
         _items.Clear();
+        StatusList.Children.Clear();
+        StatusPanel.Visibility = Visibility.Collapsed;
 
         try
         {
-            foreach (var game in PlatformImportService.ReadAll())
+            var result = PlatformImportService.ReadAllWithStatus();
+
+            foreach (var game in result.Games)
             {
                 var vm = new SelectablePlatformGame(game);
                 vm.PropertyChanged += (_, args) =>
@@ -46,14 +52,81 @@ public partial class ImportWindow : Window
 
                 _items.Add(vm);
             }
+
+            RenderStatuses(result.Statuses);
         }
         catch (Exception ex)
         {
             Logger.Error("读取平台游戏列表失败", ex);
+            AddStatusLine("读取平台列表失败：" + ex.Message,
+                "把运行日志导出发给开发者，能直接看到是哪一步出的问题。", isError: true);
         }
 
         EmptyHint.Visibility = _items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         UpdateCount();
+    }
+
+    /// <summary>
+    /// 把每个平台的诊断画成一行。全部正常时不显示这块面板，
+    /// 免得导个游戏还要先读三段「一切正常」。
+    /// </summary>
+    private void RenderStatuses(IReadOnlyList<PlatformStatus> statuses)
+    {
+        // 有问题的排前面，用户一眼先看到「为什么没读到」
+        var problems = statuses.Where(s => s.HasProblem).ToList();
+        if (problems.Count == 0)
+        {
+            StatusPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        StatusPanel.Visibility = Visibility.Visible;
+
+        foreach (var status in problems)
+        {
+            AddStatusLine(
+                $"{status.Platform}：{status.Message}",
+                status.Hint,
+                isError: status.State == PlatformState.Error);
+        }
+    }
+
+    private void AddStatusLine(string message, string hint, bool isError)
+    {
+        var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+
+        line.Children.Add(new TextBlock
+        {
+            Text = isError ? "⚠" : "·",
+            FontSize = 11.5,
+            Margin = new Thickness(0, 1, 8, 0),
+            VerticalAlignment = VerticalAlignment.Top,
+            Foreground = (Brush)FindResource(isError ? "Brush.Warning" : "Brush.TextFaint"),
+        });
+
+        var text = new StackPanel();
+        text.Children.Add(new TextBlock
+        {
+            Text = message,
+            FontSize = 11.5,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = (Brush)FindResource(isError ? "Brush.Warning" : "Brush.Text"),
+        });
+
+        if (!string.IsNullOrWhiteSpace(hint))
+        {
+            text.Children.Add(new TextBlock
+            {
+                Text = hint,
+                FontSize = 11,
+                Margin = new Thickness(0, 3, 0, 0),
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = (Brush)FindResource("Brush.TextDim"),
+            });
+        }
+
+        line.Children.Add(text);
+        StatusList.Children.Add(line);
     }
 
     private void UpdateCount()

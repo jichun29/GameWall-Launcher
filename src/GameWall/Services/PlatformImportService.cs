@@ -8,6 +8,69 @@ using GameWall.Models;
 
 namespace GameWall.Services;
 
+/// <summary>一个平台的读取结果状态。用来在导入窗口里告诉用户「为什么没读到」。</summary>
+public enum PlatformState
+{
+    /// <summary>读到了游戏</summary>
+    Ok = 0,
+
+    /// <summary>客户端在，但库里一个游戏都没有</summary>
+    NoGames = 1,
+
+    /// <summary>本机没检测到该平台客户端</summary>
+    ClientMissing = 2,
+
+    /// <summary>客户端装了，但本地清单还没生成（没启动过 / 没登录过）</summary>
+    ManifestMissing = 3,
+
+    /// <summary>读取过程出错（权限、文件损坏等）</summary>
+    Error = 4,
+}
+
+/// <summary>
+/// 单个平台的读取诊断。
+///
+/// 平台导入最常被问的两句是「为什么一个游戏都没有」和「我明明装了」，
+/// 光写日志没用——用户不会去翻日志。所以这里每个平台都给一句话现状 + 一句可操作的建议，
+/// 直接画在导入窗口里。
+/// </summary>
+public sealed class PlatformStatus
+{
+    public string Platform { get; init; } = string.Empty;
+
+    public PlatformState State { get; init; }
+
+    public int Count { get; init; }
+
+    /// <summary>现状，例如「未检测到 Steam 客户端」。</summary>
+    public string Message { get; init; } = string.Empty;
+
+    /// <summary>下一步能做什么，例如「先启动一次 Steam 客户端再回来点重新扫描」。</summary>
+    public string Hint { get; init; } = string.Empty;
+
+    /// <summary>这条状态是否需要用户在界面上看到（全部正常时不占地方）。</summary>
+    public bool HasProblem => State != PlatformState.Ok;
+
+    public bool IsReadable => State == PlatformState.Ok || State == PlatformState.NoGames;
+
+    public static PlatformStatus Ok(string platform, int count, string where) => new()
+    {
+        Platform = platform,
+        State = count > 0 ? PlatformState.Ok : PlatformState.NoGames,
+        Count = count,
+        Message = count > 0 ? $"读到 {count} 个游戏（{where}）" : $"客户端在（{where}），但库里没有已安装的游戏",
+        Hint = count > 0 ? string.Empty : "在平台里装好游戏后再点「重新扫描」。",
+    };
+}
+
+/// <summary>平台导入的完整结果：游戏 + 每个平台的诊断。</summary>
+public sealed class PlatformImportResult
+{
+    public List<PlatformGame> Games { get; init; } = new();
+
+    public List<PlatformStatus> Statuses { get; init; } = new();
+}
+
 /// <summary>从平台导入的候选游戏。</summary>
 public sealed class PlatformGame
 {
@@ -40,14 +103,40 @@ public sealed class PlatformGame
 public static class PlatformImportService
 {
     // ── Steam ────────────────────────────────────────────────
-    public static List<PlatformGame> ReadSteam()
+    public static List<PlatformGame> ReadSteam() => ReadSteamCore(out _);
+
+    private static List<PlatformGame> ReadSteamCore(out PlatformStatus status)
     {
         var list = new List<PlatformGame>();
+        var steamRoot = string.Empty;
+
+        status = new PlatformStatus
+        {
+            Platform = "Steam",
+            State = PlatformState.ClientMissing,
+            Message = "没有检测到 Steam 客户端",
+            Hint = "Steam 装在非默认位置时，先启动一次 Steam 客户端，再回来点「重新扫描」。",
+        };
+
         try
         {
-            var steamRoot = ReadSteamRoot();
-            if (string.IsNullOrEmpty(steamRoot))
+            steamRoot = ReadSteamRoot() ?? string.Empty;
+            if (steamRoot.Length == 0)
             {
+                return list;
+            }
+
+            // 根目录找到了但 libraryfolders.vdf 还没生成 —— 客户端装过但没登录过
+            var vdf = Path.Combine(steamRoot, "steamapps", "libraryfolders.vdf");
+            if (!File.Exists(vdf))
+            {
+                status = new PlatformStatus
+                {
+                    Platform = "Steam",
+                    State = PlatformState.ManifestMissing,
+                    Message = "找到了 Steam（" + steamRoot + "），但本地库清单还没生成",
+                    Hint = "启动一次 Steam 客户端并登录，等库列表加载出来后回来点「重新扫描」。",
+                };
                 return list;
             }
 
@@ -115,9 +204,19 @@ public static class PlatformImportService
         catch (Exception ex)
         {
             Logger.Error("读取 Steam 游戏失败", ex);
+            status = new PlatformStatus
+            {
+                Platform = "Steam",
+                State = PlatformState.Error,
+                Message = "读取 Steam 库时出错：" + ex.Message,
+                Hint = "确认 Steam 客户端没有被杀进程，或稍后重试；持续失败请把日志导出发给开发者。",
+            };
+            return list;
         }
 
-        return list.OrderBy(g => g.Name, StringComparer.CurrentCulture).ToList();
+        var ordered = list.OrderBy(g => g.Name, StringComparer.CurrentCulture).ToList();
+        status = PlatformStatus.Ok("Steam", ordered.Count, steamRoot);
+        return ordered;
     }
 
     private static string? ReadSteamRoot()
@@ -188,17 +287,38 @@ public static class PlatformImportService
     }
 
     // ── Epic ─────────────────────────────────────────────────
-    public static List<PlatformGame> ReadEpic()
+    public static List<PlatformGame> ReadEpic() => ReadEpicCore(out _);
+
+    private static List<PlatformGame> ReadEpicCore(out PlatformStatus status)
     {
         var list = new List<PlatformGame>();
+        var dat = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "Epic", "UnrealEngineLauncher", "LauncherInstalled.dat");
+
+        status = new PlatformStatus
+        {
+            Platform = "Epic",
+            State = PlatformState.ClientMissing,
+            Message = "没有检测到 Epic 客户端",
+            Hint = "没装 Epic 就不用管。装了的话启动一次 Epic Games Launcher 再回来点「重新扫描」。",
+        };
+
         try
         {
-            var dat = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-                "Epic", "UnrealEngineLauncher", "LauncherInstalled.dat");
-
             if (!File.Exists(dat))
             {
+                // 注册表里有 Epic 说明客户端装过，只是清单还没落地
+                if (EpicRegistryExists())
+                {
+                    status = new PlatformStatus
+                    {
+                        Platform = "Epic",
+                        State = PlatformState.ManifestMissing,
+                        Message = "装了 Epic，但安装清单还没生成",
+                        Hint = "启动 Epic Games Launcher 并登录一次，让它写出 LauncherInstalled.dat 后再「重新扫描」。",
+                    };
+                }
                 return list;
             }
 
@@ -206,6 +326,13 @@ public static class PlatformImportService
             using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(dat));
             if (!doc.RootElement.TryGetProperty("InstallationList", out var arr))
             {
+                status = new PlatformStatus
+                {
+                    Platform = "Epic",
+                    State = PlatformState.ManifestMissing,
+                    Message = "Epic 安装清单存在，但里面没有游戏列表",
+                    Hint = "在 Epic 里装好游戏后，重新打开一次启动器再「重新扫描」。",
+                };
                 return list;
             }
 
@@ -234,15 +361,50 @@ public static class PlatformImportService
         catch (Exception ex)
         {
             Logger.Error("读取 Epic 游戏失败", ex);
+            status = new PlatformStatus
+            {
+                Platform = "Epic",
+                State = PlatformState.Error,
+                Message = "读取 Epic 清单时出错：" + ex.Message,
+                Hint = "清单文件可能正在被客户端写入，等 Epic 完全启动后再试一次。",
+            };
+            return list;
         }
 
-        return list.OrderBy(g => g.Name, StringComparer.CurrentCulture).ToList();
+        var ordered = list.OrderBy(g => g.Name, StringComparer.CurrentCulture).ToList();
+        status = PlatformStatus.Ok("Epic", ordered.Count, "LauncherInstalled.dat");
+        return ordered;
+    }
+
+    /// <summary>注册表里有没有 Epic 的痕迹（判断「确实装了客户端」）。</summary>
+    private static bool EpicRegistryExists()
+    {
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher")
+                            ?? Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Epic Games\EpicGamesLauncher");
+            return key is not null;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     // ── GOG ──────────────────────────────────────────────────
-    public static List<PlatformGame> ReadGog()
+    public static List<PlatformGame> ReadGog() => ReadGogCore(out _);
+
+    private static List<PlatformGame> ReadGogCore(out PlatformStatus status)
     {
         var list = new List<PlatformGame>();
+        status = new PlatformStatus
+        {
+            Platform = "GOG",
+            State = PlatformState.ClientMissing,
+            Message = "没有检测到 GOG Galaxy",
+            Hint = "没装 GOG 就不用管。GOG 的游戏也可以直接用「扫描」或「手动添加」。",
+        };
+
         try
         {
             using var root = Registry.CurrentUser.OpenSubKey(@"Software\GOG.com\Games");
@@ -294,9 +456,19 @@ public static class PlatformImportService
         catch (Exception ex)
         {
             Logger.Error("读取 GOG 游戏失败", ex);
+            status = new PlatformStatus
+            {
+                Platform = "GOG",
+                State = PlatformState.Error,
+                Message = "读取 GOG 注册表时出错：" + ex.Message,
+                Hint = "注册表可能被安全软件拦住，可改用「扫描」找 GOG 的游戏目录。",
+            };
+            return list;
         }
 
-        return list.OrderBy(g => g.Name, StringComparer.CurrentCulture).ToList();
+        var ordered = list.OrderBy(g => g.Name, StringComparer.CurrentCulture).ToList();
+        status = PlatformStatus.Ok("GOG", ordered.Count, @"HKCU\Software\GOG.com\Games");
+        return ordered;
     }
 
     /// <summary>批量导入（去重交给调用方，这里只负责读取）。</summary>
@@ -307,6 +479,28 @@ public static class PlatformImportService
         all.AddRange(ReadEpic());
         all.AddRange(ReadGog());
         return all;
+    }
+
+    /// <summary>批量读取，同时带回每个平台的诊断信息（导入窗口用这个）。</summary>
+    public static PlatformImportResult ReadAllWithStatus()
+    {
+        var result = new PlatformImportResult();
+
+        result.Games.AddRange(ReadSteamCore(out var steam));
+        result.Games.AddRange(ReadEpicCore(out var epic));
+        result.Games.AddRange(ReadGogCore(out var gog));
+
+        result.Statuses.Add(steam);
+        result.Statuses.Add(epic);
+        result.Statuses.Add(gog);
+
+        // 读不到东西的原因统一记一条日志，用户把日志发过来就能直接定位
+        foreach (var s in result.Statuses.Where(s => s.HasProblem))
+        {
+            Logger.Warn($"平台导入：{s.Platform} — {s.Message}（{s.Hint}）");
+        }
+
+        return result;
     }
 
     // ── 按 ID 反查（拖入 steam:// 快捷方式时用）─────────────
