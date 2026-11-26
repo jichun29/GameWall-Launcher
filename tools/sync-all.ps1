@@ -28,14 +28,15 @@ param(
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# 本机有一个全局代理指到 127.0.0.1:29982，对这三个 git 端点都不通，
-# 直连反而正常。这里在进程内清掉，不动用户的系统设置。
-$env:HTTP_PROXY = ''
-$env:HTTPS_PROXY = ''
-$env:http_proxy = ''
-$env:https_proxy = ''
-$env:NO_PROXY = '*'
+# 网络这块踩过坑，记一下：
+#   本机有全局代理（127.0.0.1:29982），GitHub 走它能通，直连会被 reset；
+#   Gitee / CNB 反过来，走代理反而 502，必须直连。
+# 所以不能一刀切清空代理，而是按平台分别给 git 指定。
 $env:GIT_TERMINAL_PROMPT = '0'
+$proxyUrl = $env:HTTPS_PROXY
+if ([string]::IsNullOrWhiteSpace($proxyUrl)) { $proxyUrl = $env:HTTP_PROXY }
+if ([string]::IsNullOrWhiteSpace($proxyUrl)) { $proxyUrl = $env:https_proxy }
+if ([string]::IsNullOrWhiteSpace($proxyUrl)) { $proxyUrl = $env:http_proxy }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
@@ -46,18 +47,21 @@ $platforms = @{
         Remote = 'origin'
         Url    = 'https://github.com/jichun29/GameWall-Launcher.git'
         Web    = 'https://github.com/jichun29/GameWall-Launcher'
+        Proxy  = $true
     }
     gitee  = @{
         Name   = 'Gitee'
         Remote = 'gitee'
         Url    = 'https://gitee.com/jichun29/GameWall-Launcher.git'
         Web    = 'https://gitee.com/jichun29/GameWall-Launcher'
+        Proxy  = $false
     }
     cnb    = @{
         Name   = 'CNB'
         Remote = 'cnb'
         Url    = 'https://cnb.cool/jichun29/GameWall-Launcher.git'
         Web    = 'https://cnb.cool/jichun29/GameWall-Launcher'
+        Proxy  = $false
     }
 }
 
@@ -98,9 +102,10 @@ function Get-CnbToken {
 
 function Resolve-Credential {
     <#
-      按平台取认证信息，返回 @{ Args = <git 额外参数数组> } 或 $null。
+      按平台取认证信息，返回 @{ AuthArgs = <git -c 参数数组> } 或 $null。
       用 http.extraHeader 而不是把令牌拼进 URL，
       免得令牌被写进 .git/config 永久留着。
+      代理参数由调用方按"先直连再代理"的策略单独拼，这里只管认证。
     #>
     param([string]$Key)
 
@@ -108,11 +113,10 @@ function Resolve-Credential {
         'github' {
             $c = Get-GitToken -HostName 'github.com'
             if (-not $c) { return $null }
-            # 凭据管理器已经能自动应答，这里不需要塞 header，
-            # 但显式给一份能避免 GCM 弹窗。
+            # 凭据管理器已经能自动应答，这里显式给一份能避免 GCM 弹窗卡住
             $b64 = [Convert]::ToBase64String(
                 [System.Text.Encoding]::ASCII.GetBytes("$($c.User):$($c.Password)"))
-            return @{ Args = @('-c', "http.https://github.com/.extraheader=Authorization: Basic $b64") }
+            return @{ AuthArgs = @('-c', "http.https://github.com/.extraheader=Authorization: Basic $b64") }
         }
         'gitee' {
             $tok = $GiteeToken
@@ -124,14 +128,14 @@ function Resolve-Credential {
             if ([string]::IsNullOrWhiteSpace($tok)) { return $null }
             $b64 = [Convert]::ToBase64String(
                 [System.Text.Encoding]::ASCII.GetBytes("oauth2:$tok"))
-            return @{ Args = @('-c', "http.https://gitee.com/.extraheader=Authorization: Basic $b64") }
+            return @{ AuthArgs = @('-c', "http.https://gitee.com/.extraheader=Authorization: Basic $b64") }
         }
         'cnb' {
             $tok = Get-CnbToken
             if ([string]::IsNullOrWhiteSpace($tok)) { return $null }
             $b64 = [Convert]::ToBase64String(
                 [System.Text.Encoding]::ASCII.GetBytes("oauth2:$tok"))
-            return @{ Args = @('-c', "http.https://cnb.cool/.extraheader=Authorization: Basic $b64") }
+            return @{ AuthArgs = @('-c', "http.https://cnb.cool/.extraheader=Authorization: Basic $b64") }
         }
     }
     return $null
@@ -197,9 +201,52 @@ foreach ($key in $Only) {
         continue
     }
 
-    Write-Host ("  {0,-7} 推送中…" -f $p.Name) -ForegroundColor Gray
-    $out = & git @($cred.Args) push $p.Remote "$Branch`:$Branch" 2>&1
-    $code = $LASTEXITCODE
+    # 国内直连 GitHub 经常 "Connection was reset" / "missing close_notify"，
+    # 走本机代理有时又 502，两边都不稳。所以每一轮先直连、直连不行再走代理，
+    # 最多 3 轮退避重试，别让偶发断线算成失败。
+    $maxTry = 3
+    $out = $null
+    $code = 1
+    # git 把进度和报错打在 stderr，$ErrorActionPreference=Stop 会把它当
+    # 终止性异常抛出来，导致重试循环根本没机会跑。这里临时放宽。
+    $savedEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+
+    try {
+        for ($try = 1; $try -le $maxTry; $try++) {
+            foreach ($viaProxy in @($false, $true)) {
+                # 平台不许走代理（Gitee / CNB 走代理会 502）就只试直连
+                if ($viaProxy -and (-not $proxyUrl -or -not $p.Proxy)) { continue }
+
+                $how = if ($viaProxy) { '走代理' } else { '直连' }
+                $label = if ($try -eq 1) { "推送中（$how）…" } else { "重试 $try/$maxTry（$how）…" }
+                Write-Host ("  {0,-7} {1}" -f $p.Name, $label) -ForegroundColor Gray
+
+                $useProxy = $viaProxy
+                $runArgs = @()
+                if ($useProxy) {
+                    $runArgs = @('-c', "http.proxy=$proxyUrl", '-c', "https.proxy=$proxyUrl")
+                } else {
+                    $runArgs = @('-c', 'http.proxy=', '-c', 'https.proxy=')
+                }
+                $runArgs += $cred.AuthArgs
+
+                $out = & git @runArgs push $p.Remote "$Branch`:$Branch" 2>&1
+                $code = $LASTEXITCODE
+                if ($code -eq 0) { break }
+
+                # 认证失败之类重试无意义
+                $text = ($out -join "`n")
+                if ($text -match 'Authentication failed|Permission denied|not found|\[rejected\]') {
+                    break
+                }
+            }
+            if ($code -eq 0) { break }
+            if ($try -lt $maxTry) { Start-Sleep -Seconds (2 * $try) }
+        }
+    } finally {
+        $ErrorActionPreference = $savedEap
+    }
 
     if ($code -eq 0) {
         Write-Host ("  {0,-7} OK      {1}" -f $p.Name, $p.Web) -ForegroundColor Green
