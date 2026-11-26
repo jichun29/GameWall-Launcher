@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -34,40 +35,74 @@ public partial class RelinkWindow : Window
         _searchRoots = searchRoots?.Where(r => !string.IsNullOrWhiteSpace(r)).ToList() ?? new List<string>();
 
         BrokenList.ItemsSource = _rows;
-        Loaded += (_, _) => Reload(guess: true);
+        Loaded += async (_, _) => await ReloadAsync(guess: true);
     }
 
     /// <summary>应用后要写回的新路径集合（Entry → 新 exe 路径）。</summary>
     public Dictionary<GameEntry, string> Repairs { get; } = new();
 
-    private void Reload(bool guess)
-    {
-        _rows.Clear();
+    private bool _loading;
 
-        var broken = LibraryHealthService.Inspect(_games, _searchRoots, guess);
-        foreach (var item in broken)
+    /// <summary>
+    /// 体检 + 猜位置。
+    ///
+    /// 猜位置要遍历磁盘（按文件名找），在机械盘或大容量盘上要好几秒。
+    /// 这段必须放后台线程：以前是同步跑在 Loaded 里，窗口框架已经画出来了，
+    /// 但内容一直不出现，看起来就是卡死 / 白屏。
+    /// </summary>
+    private async Task ReloadAsync(bool guess)
+    {
+        if (_loading)
         {
-            var row = new BrokenGameRow(item);
-            row.PropertyChanged += (_, args) =>
-            {
-                if (args.PropertyName == nameof(BrokenGameRow.IsSelected))
-                {
-                    UpdateCount();
-                }
-            };
-            _rows.Add(row);
+            return;
         }
 
-        EmptyHint.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        _loading = true;
+        BusyPanel.Visibility = Visibility.Visible;
+        EmptyHint.Visibility = Visibility.Collapsed;
 
-        var fixable = _rows.Count(r => r.HasGuess);
-        IntroText.Text = _rows.Count == 0
-            ? "库里没有失效的路径。"
-            : fixable == 0
-                ? $"有 {_rows.Count} 个游戏的 exe 找不到了，但没能自动猜到新位置。可以逐个点「指定…」，或用上面的「按目录批量修复」。"
-                : $"有 {_rows.Count} 个游戏的 exe 找不到了，其中 {fixable} 个已经猜出新位置（默认勾选）。确认无误点「应用修复」即可。";
+        try
+        {
+            var games = _games;
+            var roots = _searchRoots;
 
-        UpdateCount();
+            var broken = await Task.Run(() => LibraryHealthService.Inspect(games, roots, guess));
+
+            _rows.Clear();
+            foreach (var item in broken)
+            {
+                var row = new BrokenGameRow(item);
+                row.PropertyChanged += (_, args) =>
+                {
+                    if (args.PropertyName == nameof(BrokenGameRow.IsSelected))
+                    {
+                        UpdateCount();
+                    }
+                };
+                _rows.Add(row);
+            }
+
+            EmptyHint.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            var fixable = _rows.Count(r => r.HasGuess);
+            IntroText.Text = _rows.Count == 0
+                ? "库里没有失效的路径。"
+                : fixable == 0
+                    ? $"有 {_rows.Count} 个游戏的 exe 找不到了，但没能自动猜到新位置。可以逐个点「指定…」，或用上面的「按目录批量修复」。"
+                    : $"有 {_rows.Count} 个游戏的 exe 找不到了，其中 {fixable} 个已经猜出新位置（默认勾选）。确认无误点「应用修复」即可。";
+
+            UpdateCount();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("体检失效路径失败", ex);
+            IntroText.Text = "检查失效路径时出错了：" + ex.Message;
+        }
+        finally
+        {
+            BusyPanel.Visibility = Visibility.Collapsed;
+            _loading = false;
+        }
     }
 
     private void UpdateCount()

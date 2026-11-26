@@ -128,6 +128,21 @@
                                TextAlignment="Center" TextWrapping="Wrap" MaxWidth="460" LineHeight="21"
                                Visibility="Collapsed"
                                Text="没有失效的路径。&#10;游戏被移动或删除后，这里可以一键重新指向。" />
+
+                    <!-- 扫描遮罩：猜新位置要遍历磁盘，慢盘上可能好几秒。
+                         不遮住的话用户看到的是一个空列表，以为卡死了。
+                         扫描在后台线程跑，这块遮罩只负责给个「正在找」的反馈。 -->
+                    <Border x:Name="BusyPanel" Background="{DynamicResource Brush.Surface}"
+                            Visibility="Collapsed">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="正在磁盘上找这些游戏…" FontSize="13"
+                                       Foreground="{DynamicResource Brush.TextDim}"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="盘大的话要几秒，找到就会列出来"
+                                       FontSize="11" Foreground="{DynamicResource Brush.TextFaint}"
+                                       Margin="0,7,0,0" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
 

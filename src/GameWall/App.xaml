@@ -1,6 +1,7 @@
 <Application x:Class="GameWall.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:GameWall.Converters"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <ResourceDictionary>
@@ -12,6 +13,15 @@
                 <ResourceDictionary Source="Themes/Dark.xaml" />
                 <ResourceDictionary Source="Themes/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!--
+                通用转换器放应用级，不放在某个窗口里。
+                踩过的坑：BoolToVis 一开始只写在 MainWindow.Resources 里，
+                新加的对话框（RelinkWindow）用到 {StaticResource BoolToVis}
+                时解析不到，整个窗口在布局阶段抛 XamlParseException，
+                表现是「窗口出来了但里面是空的」。
+            -->
+            <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>
