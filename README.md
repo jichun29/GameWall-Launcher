@@ -786,8 +786,9 @@ Steam 只在你打开过商店页之后才把封面缓存到本地，新装的�
 
 ## 项目状态与维护
 
-- **仓库**：[jichun29/GameWall-Launcher](https://github.com/jichun29/GameWall-Launcher)（当前主仓库）
-- **旧仓库已归档**：[jichun29/GameWall](https://github.com/jichun29/GameWall) 是 v1.0.0 的旧版，**已停止更新**，请勿从那里下载
+- **仓库**：[jichun29/GameWall-Launcher](https://github.com/jichun29/GameWall-Launcher)（唯一仓库）
+- **旧仓库已下线**：v1.0.0 时期的 `jichun29/GameWall` 已删除，避免和新版本混淆。
+  任何地方看到指向那个仓库的下载链接都已失效，请全部改用本仓库的 Releases
 - **发布渠道**：只在本仓库的 [Releases](https://github.com/jichun29/GameWall-Launcher/releases) 发布，
   每个版本附 `SHA256SUMS.txt` 校验值
 - **更新节奏**：功能完成并自测通过后发版，版本号走 `1.0.x` 递增（见 [检查更新](#检查更新)），
