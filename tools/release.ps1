@@ -18,6 +18,8 @@
 #      .\tools\release.ps1 -Record
 #   6) 只重出 Release 说明草稿（改了 CHANGELOG 措辞时用，不编译、不动版本号）
 #      .\tools\release.ps1 -Notes
+#   7) 版本号不变、重新打一遍包（改了代码但还没到下一个版本号时用）
+#      .\tools\release.ps1 -Rebuild -Checksums -Installer
 #
 # 产物：
 #   dist\GameWall.exe                   单文件绿色版
@@ -27,6 +29,7 @@
 
 param(
     [switch]$Build,
+    [switch]$Rebuild,
     [switch]$Record,
     [switch]$DryRun,
     [switch]$Checksums,
@@ -222,7 +225,9 @@ function Write-ReleaseNotes([string]$ver, [string]$exePath, [string]$setupPath) 
 
 # ── 只重出 Release 说明（不动版本号、不编译）──────────────
 # 用途：CHANGELOG 措辞改了、或说明模板改了，不重新打包也能更新草稿。
-if ($Notes) {
+# 注意：跟 -Build / -Checksums 一起给时不该抢在前面返回，那种情况下面
+# 的构建流程最后会自己调 Write-ReleaseNotes，这里直接跳过。
+if ($Notes -and -not ($Build -or $Checksums)) {
     $csprojText = [System.IO.File]::ReadAllText($csproj, $utf8NoBom)
     $m = [regex]::Match($csprojText, '<Version>([^<]*)</Version>')
     $ver = if ($m.Success) { $m.Groups[1].Value.Trim() } else { $next }
@@ -240,7 +245,7 @@ if ($Notes) {
     return
 }
 
-if ($DryRun -or (-not $Build)) {
+if ($DryRun -or (-not ($Build -or $Rebuild))) {
     if (-not $DryRun) {
         Write-Host '  加 -Build 才会真正改文件并编译发布。'
     }
@@ -248,14 +253,25 @@ if ($DryRun -or (-not $Build)) {
     return
 }
 
-# ── 写回 csproj ─────────────────────────────────────────
-$text = [System.IO.File]::ReadAllText($csproj, $utf8NoBom)
-$text = [regex]::Replace($text, '<Version>[^<]*</Version>', "<Version>$next</Version>")
-$text = [regex]::Replace($text, '<FileVersion>[^<]*</FileVersion>', "<FileVersion>$next.0</FileVersion>")
-$text = [regex]::Replace($text, '<InformationalVersion>[^<]*</InformationalVersion>',
-    "<InformationalVersion>$next</InformationalVersion>")
-[System.IO.File]::WriteAllText($csproj, $text, $utf8NoBom)
-Write-Host "  已写入 csproj: $next"
+# ── 版本号：-Rebuild 用 csproj 里的现值，-Build 才往上加 ──
+if ($Rebuild) {
+    $csprojText = [System.IO.File]::ReadAllText($csproj, $utf8NoBom)
+    $m = [regex]::Match($csprojText, '<Version>([^<]*)</Version>')
+    if (-not $m.Success) { throw "csproj 里读不到 <Version>" }
+    $next = $m.Groups[1].Value.Trim()
+    Write-Host "  按 csproj 现值重打：$next（不递增）"
+    Write-Host ''
+}
+else {
+    # ── 写回 csproj ─────────────────────────────────────
+    $text = [System.IO.File]::ReadAllText($csproj, $utf8NoBom)
+    $text = [regex]::Replace($text, '<Version>[^<]*</Version>', "<Version>$next</Version>")
+    $text = [regex]::Replace($text, '<FileVersion>[^<]*</FileVersion>', "<FileVersion>$next.0</FileVersion>")
+    $text = [regex]::Replace($text, '<InformationalVersion>[^<]*</InformationalVersion>',
+        "<InformationalVersion>$next</InformationalVersion>")
+    [System.IO.File]::WriteAllText($csproj, $text, $utf8NoBom)
+    Write-Host "  已写入 csproj: $next"
+}
 
 # ── 编译 + 发布 ─────────────────────────────────────────
 $dotnetRoot = Join-Path $env:LOCALAPPDATA 'gamewall-dotnet'
