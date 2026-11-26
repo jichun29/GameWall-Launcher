@@ -15,6 +15,7 @@ namespace GameWall.ViewModels
     {
         private bool _isSelected;
         private bool _isApplied;
+        private bool _isPendingRestart;
 
         public TweakItemViewModel(TweakDefinition definition, bool applied, bool selected)
         {
@@ -61,13 +62,38 @@ namespace GameWall.ViewModels
                 {
                     OnPropertyChanged(nameof(StateText));
                     OnPropertyChanged(nameof(IsRevertVisible));
+                    OnPropertyChanged(nameof(PendingRestartVisibility));
                 }
             }
         }
 
-        public string StateText => IsApplied ? "已应用" : "未应用";
+        /// <summary>应用了但还没重启（只有 NeedsRestart 的项会变成 true）。</summary>
+        public bool IsPendingRestart
+        {
+            get => _isPendingRestart;
+            set
+            {
+                if (SetProperty(ref _isPendingRestart, value))
+                {
+                    OnPropertyChanged(nameof(StateText));
+                    OnPropertyChanged(nameof(PendingRestartVisibility));
+                    OnPropertyChanged(nameof(IsRevertVisible));
+                }
+            }
+        }
 
-        public bool IsRevertVisible => IsApplied;
+        /// <summary>「重启后生效」徽标要不要显示。用 Visibility 而不是 bool，XAML 里少一层转换器。</summary>
+        public Visibility PendingRestartVisibility =>
+            _isApplied && _isPendingRestart ? Visibility.Visible : Visibility.Collapsed;
+
+        /// <summary>
+        /// 状态文字。待重启由旁边那个琥珀色徽标单独表达（「重启后生效」），
+        /// 这里只保留「已应用 / 未应用」两态，避免同一句话在一行里出现两次。
+        /// </summary>
+        public string StateText => _isApplied ? "已应用" : "未应用";
+
+        /// <summary>已应用的项提供「撤销」入口；未应用不显示。</summary>
+        public bool IsRevertVisible => _isApplied;
 
         /// <summary>搜索用：名称、说明、效果三处任意命中即可。</summary>
         public bool Matches(string keyword)
@@ -416,9 +442,22 @@ namespace GameWall.ViewModels
             {
                 var applied = Tweaks.Count(t => t.IsApplied);
                 var total = Tweaks.Count;
-                return applied == 0
-                    ? $"共 {total} 项优化方案，还没有应用任何一项"
-                    : $"共 {total} 项优化方案，已应用 {applied} 项";
+                var pending = Tweaks.Count(t => t.IsApplied && t.IsPendingRestart);
+
+                if (applied == 0)
+                {
+                    return $"共 {total} 项优化方案，还没有应用任何一项";
+                }
+
+                var text = $"共 {total} 项优化方案，已应用 {applied} 项";
+
+                // 有待重启的项就把话说明白：现在没效果不是没生效，重启一次就好
+                if (pending > 0)
+                {
+                    text += $"（其中 {pending} 项要重启电脑后才完全生效）";
+                }
+
+                return text;
             }
         }
 
@@ -463,6 +502,9 @@ namespace GameWall.ViewModels
                 // 高风险项默认不勾，安全项也默认不勾 —— 免得用户稀里糊涂点了「应用」
                 Tweaks.Add(new TweakItemViewModel(definition, isApplied, selected: false)
                 {
+                    // 「应用了但还没重启」——改完没重启的话，很多项本来就不生效，
+                    // 必须在界面上说清楚，否则用户会以为工具没起作用
+                    IsPendingRestart = _tweaks.IsPendingRestart(definition.Id),
                     SelectionChanged = () =>
                     {
                         OnPropertyChanged(nameof(SelectedCountText));
@@ -794,10 +836,16 @@ namespace GameWall.ViewModels
                 var result = await Task.Run(() => _tweaks.ApplyMany(items.Select(t => t.Definition), IncludeHighRisk));
                 foreach (var item in items)
                 {
-                    if (_tweaks.IsApplied(item.Id)) item.IsApplied = true;
+                    if (_tweaks.IsApplied(item.Id))
+                    {
+                        item.IsApplied = true;
+                        // 刚应用完、还没重启 → 立刻标上「重启后生效」
+                        item.IsPendingRestart = _tweaks.IsPendingRestart(item.Id);
+                    }
                 }
                 ApplyFilter();
                 UpdateNavBadges();
+                OnPropertyChanged(nameof(AppliedSummary));
                 StatusText = result.Message;
                 if (result.Failures.Count > 0)
                 {

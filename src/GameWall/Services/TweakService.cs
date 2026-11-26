@@ -61,6 +61,50 @@ namespace GameWall.Services
         public bool IsApplied(string tweakId) =>
             _records.Any(r => string.Equals(r.TweakId, tweakId, StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>
+        /// 这条优化「应用了但还没重启」。
+        ///
+        /// 判断方式是拿记录时间跟系统启动时间比：应用时间晚于本次开机时间，
+        /// 就说明这条改动还没经历过一次重启，界面上要标成「待重启」，
+        /// 免得用户以为优化没生效又反复去点。
+        /// </summary>
+        public bool IsPendingRestart(string tweakId)
+        {
+            var record = _records.LastOrDefault(r =>
+                string.Equals(r.TweakId, tweakId, StringComparison.OrdinalIgnoreCase));
+
+            if (record is null)
+            {
+                return false;
+            }
+
+            var def = TweakCatalog.Find(tweakId);
+            if (def is null || !def.NeedsRestart)
+            {
+                return false;
+            }
+
+            return record.AppliedAt > SystemBootTime();
+        }
+
+        /// <summary>本次开机时间（本地时区）。取不到就返回一个很早的时间，等同于「不标待重启」。</summary>
+        public static DateTime SystemBootTime()
+        {
+            try
+            {
+                // Environment.TickCount64 是开机以来的毫秒数，不受 32 位溢出影响
+                return DateTime.Now.AddMilliseconds(-Environment.TickCount64);
+            }
+            catch
+            {
+                return DateTime.MinValue;
+            }
+        }
+
+        /// <summary>所有「已应用但待重启」的优化项 Id。</summary>
+        public IReadOnlyList<string> PendingRestartIds() =>
+            AppliedIds.Where(IsPendingRestart).ToList();
+
         // ── 应用 ─────────────────────────────────────────────
 
         /// <summary>应用一条优化项。已应用过则直接返回成功。</summary>

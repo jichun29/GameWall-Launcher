@@ -106,8 +106,17 @@
                                     Background="{DynamicResource Brush.AccentSoft}"
                                     BorderBrush="{DynamicResource Brush.AccentGlow}" BorderThickness="1"
                                     Visibility="{Binding IsApplied, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="已应用" FontSize="10.5"
+                                <TextBlock Text="{Binding StateText}" FontSize="10.5"
                                            Foreground="{DynamicResource Brush.Accent}" />
+                            </Border>
+                            <!-- 应用了但还没重启：单独用琥珀色标出来，别和「已应用」混成一句 -->
+                            <Border CornerRadius="7" Padding="7,1" Margin="6,0,0,0" VerticalAlignment="Center"
+                                    Background="{DynamicResource Brush.WarningSoft}"
+                                    BorderBrush="{DynamicResource Brush.Warning}" BorderThickness="1"
+                                    Visibility="{Binding PendingRestartVisibility}"
+                                    ToolTip="这条改动写进注册表了，但要重启电脑才完全生效">
+                                <TextBlock Text="重启后生效" FontSize="10.5"
+                                           Foreground="{DynamicResource Brush.Warning}" />
                             </Border>
                         </StackPanel>
                         <TextBlock Text="{Binding Summary}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
