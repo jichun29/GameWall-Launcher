@@ -786,11 +786,17 @@ Steam 只在你打开过商店页之后才把封面缓存到本地，新装的�
 
 ## 项目状态与维护
 
-- **仓库**：[jichun29/GameWall-Launcher](https://github.com/jichun29/GameWall-Launcher)（唯一仓库）
+- **主仓库**：[jichun29/GameWall-Launcher](https://github.com/jichun29/GameWall-Launcher)（GitHub，唯一发布渠道）
+- **镜像**：
+  [Gitee](https://gitee.com/jichun29/GameWall-Launcher) ·
+  [CNB](https://cnb.cool/jichun29/GameWall-Launcher)
+  —— 只同步源码，不放 Release 资产，下载仍然走 GitHub
 - **旧仓库已下线**：v1.0.0 时期的 `jichun29/GameWall` 已删除，避免和新版本混淆。
-  任何地方看到指向那个仓库的下载链接都已失效，请全部改用本仓库的 Releases
-- **发布渠道**：只在本仓库的 [Releases](https://github.com/jichun29/GameWall-Launcher/releases) 发布，
+  任何地方看到指向那个仓库的下载链接都已失效，请全部改用主仓库的 Releases
+- **发布渠道**：只在主仓库的 [Releases](https://github.com/jichun29/GameWall-Launcher/releases) 发布，
   每个版本附 `SHA256SUMS.txt` 校验值
+- **同步三处**：改完提交后跑 `.\tools\sync-all.ps1`，一条命令推到 GitHub / Gitee / CNB。
+  哪个平台缺令牌会自动跳过并提示，不影响其它平台；补好令牌后用 `-Only` 只补推那一处
 - **更新节奏**：功能完成并自测通过后发版，版本号走 `1.0.x` 递增（见 [检查更新](#检查更新)），
   每次发版在 [CHANGELOG.md](CHANGELOG.md) 里留下一条用户可读的记录
 - **反馈**：[Issues](https://github.com/jichun29/GameWall-Launcher/issues)。带上「运行日志」导出的 txt
