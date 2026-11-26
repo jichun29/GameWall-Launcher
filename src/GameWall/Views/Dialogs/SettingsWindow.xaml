@@ -272,6 +272,19 @@
 
                     <Border Style="{StaticResource Accent.Divider}" Margin="0,26,0,22" />
 
+                    <!-- ══════ 备份与迁移 ══════ -->
+                    <TextBlock Text="备份与迁移" Style="{StaticResource Text.Title}" FontSize="15" Margin="0,22,0,10" />
+                    <TextBlock Style="{StaticResource Text.Dim}" FontSize="11.5" TextWrapping="Wrap" LineHeight="18"
+                               Text="导出一个 .zip，里面是游戏列表 + 封面 + 图标，换电脑或重装系统后直接导回来，不用重新扫一遍。&#10;游戏本体不在包里——换机后路径变了会自动提示修复。" />
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Content="导出游戏库…" Click="ExportLibrary_Click" Margin="0,0,10,0"
+                                ToolTip="打包游戏列表、封面和图标成一个 zip" />
+                        <Button Content="导入游戏库…" Click="ImportLibrary_Click"
+                                ToolTip="从备份 zip 里恢复游戏；已在库里的会自动跳过" />
+                    </StackPanel>
+
+                    <Border Style="{StaticResource Accent.Divider}" Margin="0,26,0,22" />
+
                     <!-- ══════ 数据与关于 ══════ -->
                     <TextBlock Text="数据与关于" Style="{StaticResource Text.Title}" FontSize="15" Margin="0,0,0,10" />
                     <TextBlock x:Name="DataPathText" Style="{StaticResource Text.Subtitle}"

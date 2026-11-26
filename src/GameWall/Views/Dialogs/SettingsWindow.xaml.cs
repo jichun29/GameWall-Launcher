@@ -10,6 +10,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using GameWall.Models;
 using GameWall.Services;
+using GameWall.Views;
+using Microsoft.Win32;
 
 namespace GameWall.Views.Dialogs;
 
@@ -589,6 +591,123 @@ public partial class SettingsWindow : Window
         {
             Logger.Error("打开 Releases 页面失败", ex);
         }
+    }
+
+    // ══════════════ 备份与迁移 ══════════════
+
+    /// <summary>
+    /// 导出游戏库。设置窗口自己拿不到主视图模型的库，所以通过 Owner 窗口转一手。
+    /// </summary>
+    private void ExportLibrary_Click(object sender, RoutedEventArgs e)
+    {
+        var vm = (Owner as MainWindow)?.ViewModel;
+        if (vm is null || vm.LibraryGames.Count == 0)
+        {
+            MessageBox.Show("游戏库还是空的，没有可导出的内容。", "导出游戏库",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "导出游戏库",
+            FileName = $"GameWall-库备份-{DateTime.Now:yyyyMMdd}.zip",
+            DefaultExt = ".zip",
+            Filter = "GameWall 库备份 (*.zip)|*.zip",
+            AddExtension = true,
+        };
+
+        // 默认落在桌面，用户最容易找到
+        try
+        {
+            var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            if (Directory.Exists(desktop))
+            {
+                dialog.InitialDirectory = desktop;
+            }
+        }
+        catch
+        {
+            // 桌面路径取不到就用系统默认
+        }
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        var result = LibraryPackService.Export(vm.LibraryGames, dialog.FileName);
+        if (!result.Success)
+        {
+            MessageBox.Show(result.Message, "导出游戏库", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var sizeText = result.Bytes >= 1024 * 1024
+            ? $"{result.Bytes / 1024.0 / 1024:F1} MB"
+            : $"{Math.Max(1, result.Bytes / 1024)} KB";
+
+        var open = MessageBox.Show(
+            $"已导出 {result.GameCount} 个游戏（含 {result.AssetCount} 张封面 / 图标，共 {sizeText}）。\n\n{result.Path}\n\n要打开所在文件夹吗？",
+            "导出游戏库", MessageBoxButton.YesNo, MessageBoxImage.Information, MessageBoxResult.No);
+
+        if (open == MessageBoxResult.Yes)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"/select,\"{result.Path}\"",
+                    UseShellExecute = true,
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("打开导出目录失败", ex);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 导入游戏库。导入完不改设置窗口里任何东西，只是让主窗口重载卡片，
+    /// 所以直接把结果告诉用户即可。
+    /// </summary>
+    private void ImportLibrary_Click(object sender, RoutedEventArgs e)
+    {
+        var vm = (Owner as MainWindow)?.ViewModel;
+        if (vm is null)
+        {
+            MessageBox.Show("请从主窗口打开设置后再导入。", "导入游戏库",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var dialog = new OpenFileDialog
+        {
+            Title = "导入游戏库备份",
+            Filter = "GameWall 库备份 (*.zip)|*.zip|所有文件 (*.*)|*.*",
+            CheckFileExists = true,
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        var (added, skipped) = vm.ImportFromPack(dialog.FileName);
+
+        if (added == 0 && skipped == 0)
+        {
+            return;
+        }
+
+        var text = added == 0
+            ? $"备份里的 {skipped} 个游戏都已经在库里了，没有新增。"
+            : $"已导入 {added} 个游戏。{(skipped > 0 ? $"另有 {skipped} 个已在库里，已跳过。" : string.Empty)}\n\n" +
+              "游戏本体不在备份里。如果路径失效，顶栏会提示，点「去修复」可以批量重新指向。";
+
+        MessageBox.Show(text, "导入游戏库", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     // ══════════════ 关于 ══════════════
