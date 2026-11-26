@@ -231,8 +231,25 @@ foreach ($key in $Only) {
                 }
                 $runArgs += $cred.AuthArgs
 
-                $out = & git @runArgs push $p.Remote "$Branch`:$Branch" 2>&1
-                $code = $LASTEXITCODE
+                # 关键：git -c http.proxy= 只清掉 git 自己的配置，
+                # 环境变量里那套 https_proxy / HTTPS_PROXY 照样会被 libcurl 读走。
+                # 之前一直"直连被 reset"，其实是代理端口早就换了、请求全打在死代理上。
+                # 直连这一轮必须把这些变量临时摘掉，走代理那轮再把它们设回去。
+                $proxyVars = @('http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY')
+                $savedVars = @{}
+                foreach ($v in $proxyVars) { $savedVars[$v] = [Environment]::GetEnvironmentVariable($v) }
+                try {
+                    if ($useProxy) {
+                        foreach ($v in $proxyVars) { [Environment]::SetEnvironmentVariable($v, $proxyUrl) }
+                    } else {
+                        foreach ($v in $proxyVars) { [Environment]::SetEnvironmentVariable($v, $null) }
+                    }
+
+                    $out = & git @runArgs push $p.Remote "$Branch`:$Branch" 2>&1
+                    $code = $LASTEXITCODE
+                } finally {
+                    foreach ($v in $proxyVars) { [Environment]::SetEnvironmentVariable($v, $savedVars[$v]) }
+                }
                 if ($code -eq 0) { break }
 
                 # 认证失败之类重试无意义
@@ -259,8 +276,17 @@ foreach ($key in $Only) {
         try {
             $savedEap2 = $ErrorActionPreference
             $ErrorActionPreference = 'Continue'
-            $lsArgs = @('-c', 'http.proxy=', '-c', 'https.proxy=') + $cred.AuthArgs
-            $lsOut = & git @lsArgs ls-remote $p.Remote "refs/heads/$Branch" 2>&1
+            # 核实也走直连，同样要摘掉环境变量里的代理，否则又是打在死代理上
+            $proxyVars2 = @('http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY')
+            $savedVars2 = @{}
+            foreach ($v in $proxyVars2) { $savedVars2[$v] = [Environment]::GetEnvironmentVariable($v) }
+            try {
+                foreach ($v in $proxyVars2) { [Environment]::SetEnvironmentVariable($v, $null) }
+                $lsArgs = @('-c', 'http.proxy=', '-c', 'https.proxy=') + $cred.AuthArgs
+                $lsOut = & git @lsArgs ls-remote $p.Remote "refs/heads/$Branch" 2>&1
+            } finally {
+                foreach ($v in $proxyVars2) { [Environment]::SetEnvironmentVariable($v, $savedVars2[$v]) }
+            }
             $ErrorActionPreference = $savedEap2
 
             $headSha = (& git rev-parse HEAD).Trim()
