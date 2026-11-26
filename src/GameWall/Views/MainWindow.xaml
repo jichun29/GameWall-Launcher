@@ -74,6 +74,9 @@
             <Separator />
             <MenuItem Header="打开安装目录" Icon="📁" Command="{Binding RevealCommand}" />
             <MenuItem Header="打开存档目录" Icon="💾" Command="{Binding OpenSaveDirCommand}" />
+            <!-- 只在「文件缺失」时出现：换机器 / 挪目录后一键重新指向 -->
+            <MenuItem Header="重新指定可执行文件…" Icon="🔗" Command="{Binding RelinkCommand}"
+                      Visibility="{Binding IsMissing, Converter={StaticResource BoolToVis}}" />
             <Separator />
             <MenuItem Header="{Binding IsFavorite, Converter={StaticResource FavoriteMenuText}}"
                       Icon="★" Command="{Binding ToggleFavoriteCommand}" />
@@ -825,6 +828,39 @@
                                 Click="ShowTidy_Click" />
                         <Button Content="忽略" Height="26" Padding="14,0"
                                 Click="DismissTidy_Click" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- 路径失效：换电脑 / 挪了游戏目录之后出现，点开能批量重新指向 -->
+            <Border Background="{DynamicResource Brush.WarningSoft}"
+                    BorderBrush="{DynamicResource Brush.Warning}"
+                    BorderThickness="0,0,0,1"
+                    Padding="20,8"
+                    Visibility="{Binding HasBrokenPathHint, Converter={StaticResource BoolToVis}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="⚠" FontSize="13" Margin="0,0,9,0" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Brush.Warning}" />
+                        <TextBlock Text="{Binding BrokenPathBanner}" FontSize="12.5" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Brush.Text}" />
+                        <TextBlock Text="· 换了电脑或挪了游戏目录？可以一键重新指向"
+                                   FontSize="11.5" Margin="10,0,0,0" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Brush.TextDim}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="去修复" Height="26" Padding="16,0" Margin="0,0,8,0"
+                                Style="{StaticResource Button.Accent}"
+                                Click="ShowRelink_Click" />
+                        <Button Content="忽略" Height="26" Padding="14,0"
+                                Click="DismissRelink_Click" />
                     </StackPanel>
                 </Grid>
             </Border>

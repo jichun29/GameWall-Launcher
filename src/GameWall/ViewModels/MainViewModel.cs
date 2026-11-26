@@ -100,6 +100,9 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>请求打开「运行日志」窗口</summary>
     public event Action? RequestLog;
 
+    /// <summary>请求打开「修复失效路径」窗口</summary>
+    public event Action? RequestRelink;
+
     // ── 数据 ────────────────────────────────────────────────
     public ObservableCollection<GameCardViewModel> Cards { get; }
 
@@ -378,6 +381,178 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(HasTidyHint));
     }
 
+    // ── 路径体检（换电脑 / 挪目录后 exe 失效）────────────────
+
+    private int _brokenPathCount;
+    private string _brokenPathBanner = string.Empty;
+
+    /// <summary>exe 已经找不到的游戏数量</summary>
+    public int BrokenPathCount
+    {
+        get => _brokenPathCount;
+        private set
+        {
+            if (SetProperty(ref _brokenPathCount, value))
+            {
+                OnPropertyChanged(nameof(HasBrokenPathHint));
+            }
+        }
+    }
+
+    /// <summary>顶栏「有 N 个游戏的路径失效」提示的可见性</summary>
+    public bool HasBrokenPathHint => _brokenPathCount > 0 && !string.IsNullOrEmpty(_brokenPathBanner);
+
+    public string BrokenPathBanner
+    {
+        get => _brokenPathBanner;
+        private set
+        {
+            if (SetProperty(ref _brokenPathBanner, value))
+            {
+                OnPropertyChanged(nameof(HasBrokenPathHint));
+            }
+        }
+    }
+
+    /// <summary>
+    /// 启动时（以及导入 / 换盘之后）快速数一遍有多少条 exe 已经失效。
+    /// 只做 File.Exists，不猜新路径——猜路径要扫盘，必须等用户点开修复窗口再做。
+    /// </summary>
+    public int RefreshBrokenPathHint()
+    {
+        var count = CountBrokenPaths();
+        BrokenPathCount = count;
+        BrokenPathBanner = count > 0
+            ? $"有 {count} 个游戏的路径失效了"
+            : string.Empty;
+
+        return count;
+    }
+
+    /// <summary>
+    /// 纯计算，不碰任何绑定属性 —— 可以在后台线程调用（File.Exists 在机械盘上有延迟）。
+    /// </summary>
+    public int CountBrokenPaths()
+    {
+        var count = 0;
+
+        try
+        {
+            foreach (var entry in _library.Games)
+            {
+                if (entry.LaunchKind != LaunchKind.Executable
+                    || string.IsNullOrWhiteSpace(entry.ExecutablePath))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    if (!File.Exists(entry.ExecutablePath))
+                    {
+                        count++;
+                    }
+                }
+                catch
+                {
+                    count++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("统计失效路径失败", ex);
+        }
+
+        return count;
+    }
+
+    /// <summary>把后台算出来的条数显示到顶栏（必须在 UI 线程调用）。</summary>
+    public void SetBrokenPathCount(int count)
+    {
+        BrokenPathCount = count;
+        BrokenPathBanner = count > 0
+            ? $"有 {count} 个游戏的路径失效了"
+            : string.Empty;
+    }
+
+    /// <summary>用户关掉这条提示：本次运行不再提。</summary>
+    public void DismissBrokenPathHint()
+    {
+        BrokenPathBanner = string.Empty;
+        OnPropertyChanged(nameof(HasBrokenPathHint));
+    }
+
+    /// <summary>体检要搜索的根目录：扫描目录 + 库里有游戏的那些盘符。</summary>
+    public List<string> HealthSearchRoots()
+    {
+        var roots = _settings.ExistingScanRoots();
+
+        foreach (var entry in _library.Games)
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(entry.ExecutablePath);
+                if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir)
+                    && !roots.Any(r => string.Equals(r, dir, StringComparison.OrdinalIgnoreCase)))
+                {
+                    // 只需上级两三级就够，太细的目录会让搜索变慢
+                    roots.Add(dir);
+                }
+            }
+            catch
+            {
+                // 路径非法就跳过
+            }
+        }
+
+        return roots;
+    }
+
+    /// <summary>
+    /// 把一组修复写回游戏库。返回真正改掉的条数。
+    /// </summary>
+    public int ApplyRepairs(IReadOnlyDictionary<GameEntry, string> repairs)
+    {
+        if (repairs is null || repairs.Count == 0)
+        {
+            return 0;
+        }
+
+        var changed = 0;
+
+        foreach (var pair in repairs)
+        {
+            if (pair.Key is null || string.IsNullOrWhiteSpace(pair.Value) || !File.Exists(pair.Value))
+            {
+                continue;
+            }
+
+            LibraryHealthService.ApplyNewPath(pair.Key, pair.Value);
+            changed++;
+        }
+
+        if (changed == 0)
+        {
+            return 0;
+        }
+
+        _library.Save();
+
+        // 图标路径被清空了，让卡片重新从新 exe 提取
+        foreach (var card in _cardCache.Values)
+        {
+            card.EnsureVisuals();
+            card.Refresh();
+        }
+
+        ReloadCards();
+        RefreshBrokenPathHint();
+        Logger.Info($"已修复 {changed} 个游戏的路径");
+
+        return changed;
+    }
+
     /// <summary>
     /// 检查更新。
     /// </summary>
@@ -594,6 +769,51 @@ public sealed class MainViewModel : ObservableObject
 
         ReloadCards();
         return true;
+    }
+
+    /// <summary>
+    /// 从备份包导入游戏。已在库里的跳过（按启动 URI / 名字判断）。
+    /// </summary>
+    /// <returns>真正加进来的条数、跳过的条数</returns>
+    public (int added, int skipped) ImportFromPack(string zipPath)
+    {
+        var read = LibraryPackService.Read(zipPath);
+        if (!read.Success)
+        {
+            MessageBox.Show(read.Message, "导入游戏库", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return (0, 0);
+        }
+
+        var added = 0;
+        var skipped = 0;
+
+        foreach (var entry in read.Added)
+        {
+            if (LibraryPackService.IsDuplicate(entry, _library.Games))
+            {
+                skipped++;
+                continue;
+            }
+
+            // 导入的记录已经有封面 / 图标（从包里解出来的），不要再让 TryAttachCover 覆盖掉；
+            // 但路径失效的情况要照实标出来，卡片上会显示「文件缺失」
+            entry.Source = string.IsNullOrWhiteSpace(entry.Source) ? "库备份导入" : entry.Source;
+
+            _library.Add(entry);
+            var card = FindOrCreate(entry);
+            card.EnsureVisuals();
+            added++;
+        }
+
+        if (added > 0)
+        {
+            _library.Save();
+            ReloadCards();
+            RefreshBrokenPathHint();
+        }
+
+        Logger.Info($"从备份导入：新增 {added} 条，跳过 {skipped} 条");
+        return (added, skipped);
     }
 
     /// <summary>
@@ -866,12 +1086,51 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             Logger.Error($"启动失败: {card.Name}", ex);
+
+            // 路径失效是最常见的启动失败原因，直接给一个「去修复」的入口，
+            // 比让用户自己去右键改路径快得多
+            var missing = ex is FileNotFoundException or DirectoryNotFoundException
+                          || !string.IsNullOrWhiteSpace(card.ExecutablePath) && !File.Exists(card.ExecutablePath);
+
+            if (missing && card.LaunchKind == LaunchKind.Executable)
+            {
+                var choice = MessageBox.Show(
+                    $"启动「{card.Name}」失败：找不到可执行文件。\n\n{ex.Message}\n\n" +
+                    "要现在打开「修复失效路径」窗口吗？里面可以批量重新指向。",
+                    "GameWall",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning,
+                    MessageBoxResult.Yes);
+
+                if (choice == MessageBoxResult.Yes)
+                {
+                    RequestRelink?.Invoke();
+                    return;
+                }
+
+                return;
+            }
+
             MessageBox.Show(
                 $"启动「{card.Name}」失败：\n{ex.Message}",
                 "GameWall",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
+    }
+
+    /// <summary>
+    /// 单张卡片重新指定 exe。用户在卡片右键菜单里点了「重新指定可执行文件…」。
+    /// 只是为了少跳一层窗口，实际还是复用编辑窗口那条路径。
+    /// </summary>
+    public void RelinkSingle(GameCardViewModel? card)
+    {
+        if (card is null)
+        {
+            return;
+        }
+
+        RequestEdit?.Invoke(card);
     }
 
     private void RevealExecutable(GameCardViewModel? card) => Reveal(card);

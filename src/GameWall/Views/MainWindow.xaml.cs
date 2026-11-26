@@ -56,6 +56,7 @@ public partial class MainWindow : Window
         _vm.RequestTidyDesktop += () => ShowTidyDesktop();
         _vm.RequestToolbox += () => ShowToolbox();
         _vm.RequestLog += () => ShowLog();
+        _vm.RequestRelink += () => ShowRelink();
 
         // 检查更新的结果统一交给主窗口处理：用户主动点的要弹窗，
         // 后台自动检查的只有在真发现新版本时才弹（顶栏提示条另外由绑定驱动）
@@ -105,6 +106,10 @@ public partial class MainWindow : Window
 
         // 数一遍桌面上还有多少快捷方式可以收纳（只读目录，很便宜，但要等首屏画完）
         _ = RefreshTidyHintAsync();
+
+        // 路径体检：只做 File.Exists，很便宜；但大量游戏散在机械盘上时也会拖慢首屏，
+        // 所以同样放到首屏之后，并且放到后台线程里跑
+        _ = RefreshBrokenPathHintAsync();
 
         // 把库里遗留的英文名换成官方中文名（读 Steam 的 appinfo.vdf，放首屏之后）
         _ = LocalizeNamesAsync();
@@ -246,6 +251,67 @@ public partial class MainWindow : Window
     private void ShowTidy_Click(object sender, RoutedEventArgs e) => ShowTidyDesktop();
 
     private void DismissTidy_Click(object sender, RoutedEventArgs e) => _vm.DismissTidyHint();
+
+    // ══════════════ 路径修复 ══════════════
+
+    /// <summary>
+    /// 启动时做一次轻量路径体检。
+    ///
+    /// File.Exists 在机械盘 / 网络盘上是有延迟的，几十上百个游戏串起来能到几百毫秒，
+    /// 所以扔到后台线程跑，跑完再回 UI 线程更新提示条——不卡首屏。
+    /// </summary>
+    private async Task RefreshBrokenPathHintAsync()
+    {
+        try
+        {
+            if (_vm.LibraryGames.Count == 0)
+            {
+                return;
+            }
+
+            await Task.Delay(600);
+
+            // 计数在后台线程算（File.Exists 有 IO 延迟），结果回 UI 线程再上屏
+            var count = await Task.Run(() => _vm.CountBrokenPaths());
+            _vm.SetBrokenPathCount(count);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("路径体检失败", ex);
+        }
+    }
+
+    private void DismissRelink_Click(object sender, RoutedEventArgs e) => _vm.DismissBrokenPathHint();
+
+    private void ShowRelink_Click(object sender, RoutedEventArgs e) => ShowRelink();
+
+    /// <summary>
+    /// 打开路径修复窗口。修好了就把顶栏提示收掉，没好就让它留着（用户还能再点）。
+    /// </summary>
+    private void ShowRelink()
+    {
+        try
+        {
+            var win = new RelinkWindow(_vm.LibraryGames, _vm.HealthSearchRoots()) { Owner = this };
+            if (win.ShowDialog() != true)
+            {
+                return;
+            }
+
+            var changed = _vm.ApplyRepairs(win.Repairs);
+            if (changed > 0)
+            {
+                MessageBox.Show($"已修复 {changed} 个游戏的路径。", "GameWall",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("打开路径修复窗口失败", ex);
+            MessageBox.Show("打开路径修复窗口时出错：" + ex.Message, "GameWall",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
 
     /// <summary>
     /// 打开整理桌面窗口。整理完（真的挪走了东西）之后重新数一遍桌面，

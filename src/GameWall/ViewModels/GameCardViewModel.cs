@@ -29,6 +29,9 @@ public sealed class GameCardViewModel : ObservableObject
         ToggleFavoriteCommand = new RelayCommand(() => Host?.ToggleFavorite(this));
         RemoveCommand = new RelayCommand(() => Host?.RemoveWithConfirm(this));
 
+        // 「文件缺失」时右键可以直接重新指向，不用绕进「编辑信息」再点浏览
+        RelinkCommand = new RelayCommand(() => Host?.RelinkSingle(this), () => IsMissing && LaunchKind == LaunchKind.Executable);
+
         // 构造时只做「不碰 Shell」的轻量检查：清掉失效的封面路径。
         // 从 exe 提取图标要过 COM（IShellItemImageFactory），几十个游戏就会把
         // 首屏拖到 2 秒以上，所以留给 WarmUpVisualsAsync 在后台补。
@@ -46,6 +49,9 @@ public sealed class GameCardViewModel : ObservableObject
     public RelayCommand OpenSaveDirCommand { get; }
     public RelayCommand ToggleFavoriteCommand { get; }
     public RelayCommand RemoveCommand { get; }
+
+    /// <summary>「文件缺失」时重新指定 exe。只在缺失 + 直接启动 exe 时可用。</summary>
+    public RelayCommand RelinkCommand { get; }
 
     // ── 基础信息 ───────────────────────────────────────────
     public string Id => Entry.Id;
